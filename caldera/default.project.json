@@ -1,0 +1,34 @@
+{
+  "name": "Caldera",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Caldera": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "CalderaServer": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "CalderaClient": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "ClockTime": 17.3
+      }
+    }
+  }
+}
