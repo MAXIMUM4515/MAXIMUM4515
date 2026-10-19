@@ -3,6 +3,13 @@
 	Everything the disaster does to players: damage with death causes, burning, lava wading,
 	heat from nearby fires, blasts with line-of-sight falloff, and knockback.
 
+	Damage comes in distinct hits rather than a per-frame drain, so every hit reads (the client
+	flashes the screen on each one):
+		molten lava   a short burst of hits on contact, repeated while you stay in it, and it sets you on fire
+		on fire       small pokes at a steady rhythm until it burns out
+		flames nearby a poke every so often, with a chance to catch fire
+		water         stepping into the pond puts the fire out and cancels any lava hits still queued
+
 	Knockback is applied by the owning client (characters are client-simulated, so velocity set
 	on the server would be overwritten); the server only decides the velocity.
 ]]
@@ -34,6 +41,14 @@ type CharacterState = {
 	Root: BasePart,
 	BurnTime: number,
 	BurnEffect: Fire?,
+	BurnCause: string,
+	NextBurnTick: number,
+	BurstHitsLeft: number,
+	BurstHitDamage: number,
+	NextBurstHit: number,
+	NextBurstAllowed: number,
+	NextFireTick: number,
+	InWater: boolean,
 	LastCause: string?,
 	LastCauseAt: number,
 	Wading: boolean,
@@ -44,6 +59,7 @@ type CharacterState = {
 local characters: { [Model]: CharacterState } = {}
 local knockbackEvent = Net.Event("Knockback")
 local killFeedEvent = Net.Event("KillFeed")
+local announceEvent = Net.Event("Announce")
 local rng = Random.new()
 
 local fireParams = OverlapParams.new()
@@ -106,10 +122,17 @@ function Hazards.Knockback(player: Player, velocity: Vector3, tumble: boolean)
 end
 
 function Hazards.SetOnFire(state: CharacterState, duration: number, cause: string)
+	-- Nothing catches fire underwater.
+	if state.InWater or state.Humanoid.Health <= 0 then
+		return
+	end
 	state.BurnTime = math.max(state.BurnTime, duration)
+	state.BurnCause = cause
 	state.LastCause = cause
 	state.LastCauseAt = os.clock()
 	if not state.BurnEffect then
+		-- The first poke lands one interval after catching fire, not on top of the hit that lit it.
+		state.NextBurnTick = os.clock() + PL.BurnTickInterval
 		local fire = Instance.new("Fire")
 		fire.Size = 5
 		fire.Heat = 9
@@ -130,8 +153,32 @@ local function extinguish(state: CharacterState)
 	state.Player:SetAttribute("Burning", nil)
 end
 
+-- Water: put the fire out, cancel queued lava hits, and make it obvious that it worked.
+local function douse(state: CharacterState)
+	local wasHurting = state.BurnEffect ~= nil or state.BurstHitsLeft > 0
+	state.BurstHitsLeft = 0
+	extinguish(state)
+	if not wasHurting then
+		return
+	end
+	local steam = Instance.new("Smoke")
+	steam.Color = Color3.fromRGB(235, 235, 235)
+	steam.Opacity = 0.35
+	steam.RiseVelocity = 9
+	steam.Size = 4
+	steam.Parent = state.Root
+	task.delay(0.8, function()
+		steam.Enabled = false
+		task.wait(3)
+		steam:Destroy()
+	end)
+	announceEvent:FireClient(state.Player, "Extinguished!", Color3.fromRGB(140, 200, 255), 1.5, "small")
+end
+
 --[[
 	A blast that hurts with distance falloff. Walls between the blast and a player halve the damage.
+	Close, unshielded blasts set people on fire unless `ignite` is false (falling rocks).
+	`canHit`, if given, is asked before each player in range is hurt (used for per-source cooldowns).
 ]]
 function Hazards.Explode(
 	position: Vector3,
@@ -139,13 +186,15 @@ function Hazards.Explode(
 	damage: number,
 	knockback: number,
 	cause: string,
-	losRoots: { Instance }
+	losRoots: { Instance },
+	ignite: boolean?,
+	canHit: ((CharacterState) -> boolean)?
 )
 	losParams.FilterDescendantsInstances = losRoots
 	for _, state in Hazards.Alive() do
 		local offset = state.Root.Position - position
 		local distance = offset.Magnitude
-		if distance < radius then
+		if distance < radius and (canHit == nil or canHit(state)) then
 			local falloff = 1 - distance / radius
 			local blocked = workspace:Raycast(position + Vector3.new(0, 1, 0), offset, losParams) ~= nil
 			local scale = if blocked then 0.45 else 1
@@ -154,7 +203,7 @@ function Hazards.Explode(
 			local direction = if flat.Magnitude > 0.1 then flat.Unit else Vector3.xAxis
 			local push = knockback * falloff * scale
 			Hazards.Knockback(state.Player, direction * push + Vector3.new(0, push * 0.55, 0), push > 40)
-			if falloff > 0.45 and not blocked then
+			if ignite ~= false and falloff > 0.45 and not blocked then
 				Hazards.SetOnFire(state, PL.BurnDuration, cause)
 			end
 		end
@@ -177,58 +226,96 @@ local function inWater(position: Vector3): boolean
 	return false
 end
 
+-- Lava's damage. Contact starts a short burst of hits and sets the player on fire; staying in the
+-- lava repeats the burst every BurstCooldown, and the fire keeps poking after they climb out.
+local function lavaContact(state: CharacterState, now: number, temperature: number)
+	if now >= state.NextBurstAllowed then
+		state.NextBurstAllowed = now + L.BurstCooldown
+		state.BurstHitsLeft = L.BurstHits
+		state.BurstHitDamage = L.BurstHitDamage * (0.6 + 0.4 * temperature)
+		state.NextBurstHit = now
+	end
+	Hazards.SetOnFire(state, PL.BurnDuration, "molten lava")
+end
+
+-- Lands the next hit of a lava burst once its interval has passed.
+local function tickBurst(state: CharacterState, now: number)
+	if state.BurstHitsLeft > 0 and now >= state.NextBurstHit then
+		state.BurstHitsLeft -= 1
+		state.NextBurstHit = now + L.BurstHitInterval
+		Hazards.Damage(state.Humanoid, state.BurstHitDamage, "molten lava")
+	end
+end
+
+-- On fire: small pokes at a steady rhythm until it burns out. Returns true while burning.
+local function tickBurning(state: CharacterState, now: number, dt: number): boolean
+	if state.BurnTime <= 0 then
+		return false
+	end
+	state.BurnTime -= dt
+	if now >= state.NextBurnTick then
+		state.NextBurnTick = now + PL.BurnTickInterval
+		Hazards.Damage(state.Humanoid, PL.BurnTickDamage, state.BurnCause)
+	end
+	if state.BurnTime <= 0 then
+		extinguish(state)
+	end
+	return true
+end
+
 local function updateCharacter(state: CharacterState, dt: number)
 	local humanoid, root = state.Humanoid, state.Root
 	if humanoid.Health <= 0 then
 		return
 	end
+	local now = os.clock()
 	local position = root.Position
 	local heat = 0
 
+	-- The pond puts out fire and cancels any lava hits still queued.
+	state.InWater = inWater(position)
+	if state.InWater then
+		douse(state)
+	end
+
 	-- Molten lava under the player's feet.
 	local surface, depth, temperature = LavaFlow.Sample(position)
-	local wading = false
-	if surface and depth > L.HarmfulDepth and temperature > L.HarmfulTemp and feetHeight(state) < surface + 0.75 then
-		wading = true
+	local molten = surface ~= nil and depth > L.HarmfulDepth and temperature > L.HarmfulTemp
+	local feet = feetHeight(state)
+	local wading = molten and not state.InWater and feet < (surface :: number) + 0.75
+	if wading then
 		heat = 1
-		Hazards.Damage(humanoid, L.DamagePerSecond * (0.4 + 0.6 * temperature) * dt, "molten lava")
-		Hazards.SetOnFire(state, PL.BurnDuration, "molten lava")
-	elseif surface and depth > L.HarmfulDepth and temperature > L.HarmfulTemp and feetHeight(state) < surface + 6 then
+		lavaContact(state, now, temperature)
+	elseif molten and feet < (surface :: number) + 6 then
 		heat = 0.55
 	end
 	if wading ~= state.Wading then
 		state.Wading = wading
 		humanoid.WalkSpeed = if wading then L.WadeSpeed else DEFAULT_WALK_SPEED
 	end
+	tickBurst(state, now)
 
-	-- Standing next to a burning building.
+	-- Standing next to a burning building: a poke every interval, with a chance to catch fire.
 	local burningParts = Combustion.BurningParts()
-	if #burningParts > 0 then
+	if #burningParts > 0 and not state.InWater then
 		if fireParamsVersion ~= Combustion.Version then
 			fireParamsVersion = Combustion.Version
 			fireParams.FilterDescendantsInstances = burningParts
 		end
 		if #workspace:GetPartBoundsInRadius(position, F.PlayerRadius, fireParams) > 0 then
 			heat = math.max(heat, 0.6)
-			Hazards.Damage(humanoid, F.PlayerDamagePerSecond * dt, "fire")
-			if rng:NextNumber() < F.PlayerIgniteChance * dt then
-				Hazards.SetOnFire(state, PL.BurnDuration, "fire")
+			if now >= state.NextFireTick then
+				state.NextFireTick = now + F.PlayerTickInterval
+				Hazards.Damage(humanoid, F.PlayerTickDamage, "fire")
+				if rng:NextNumber() < F.PlayerIgniteChance then
+					Hazards.SetOnFire(state, PL.BurnDuration, "fire")
+				end
 			end
 		end
 	end
 
-	-- Burning status: damage over time unless the player finds water.
-	if state.BurnTime > 0 then
-		if inWater(position) then
-			extinguish(state)
-		else
-			state.BurnTime -= dt
-			heat = math.max(heat, 0.75)
-			Hazards.Damage(humanoid, PL.BurnDamagePerSecond * dt, state.LastCause or "burns")
-			if state.BurnTime <= 0 then
-				extinguish(state)
-			end
-		end
+	if tickBurning(state, now, dt) then
+		heat = math.max(heat, 0.75)
 	end
 
 	-- Smooth the heat value and only replicate meaningful changes.
@@ -253,6 +340,14 @@ local function onCharacter(player: Player, character: Model)
 		Root = root,
 		BurnTime = 0,
 		BurnEffect = nil,
+		BurnCause = "burns",
+		NextBurnTick = 0,
+		BurstHitsLeft = 0,
+		BurstHitDamage = 0,
+		NextBurstHit = 0,
+		NextBurstAllowed = 0,
+		NextFireTick = 0,
+		InWater = false,
 		LastCause = nil,
 		LastCauseAt = 0,
 		Wading = false,
@@ -277,6 +372,7 @@ local function onCharacter(player: Player, character: Model)
 	humanoid.Died:Connect(function()
 		local recent = state.LastCause ~= nil and os.clock() - state.LastCauseAt < 12
 		local cause = if recent then state.LastCause :: string else "the eruption"
+		state.BurstHitsLeft = 0
 		extinguish(state)
 		killFeedEvent:FireAllClients(player.DisplayName, cause)
 		Hazards.PlayerKilled:Fire(player, cause)
@@ -318,6 +414,7 @@ end
 
 function Hazards.Reset()
 	for _, state in characters do
+		state.BurstHitsLeft = 0
 		extinguish(state)
 		if state.Wading then
 			state.Wading = false

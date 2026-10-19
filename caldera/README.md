@@ -39,8 +39,8 @@ Testing tips:
 | Phase | Time | What happens | How to survive |
 |---|---|---|---|
 | Intermission | 25 s | Players wait in the lobby; the village is rebuilt | Read the board |
-| **Rumbling** | 18 s | Tremors build, steam vents hiss, boulders break off the summit and roll down the flanks | Watch the slopes |
-| **Eruption** | 55 s | The crater explodes; lava floods through the breach toward the village; lava bombs fall on red warning rings; a fissure opens on a flank; ash darkens the sky | Dodge rings, stay out of molten lava, avoid burning houses, jump in the pond if you're on fire |
+| **Rumbling** | 18 s | Tremors build, steam vents hiss, boulders break off the summit, bounce down the flanks and burst where they land | Keep off the slopes; a burst hurts badly but won't one-shot you |
+| **Eruption** | 55 s | The crater explodes; lava floods through the breach toward the village; lava bombs fall on red warning rings; a fissure opens on a flank; ash darkens the sky | Dodge rings, stay out of molten lava, avoid burning houses, jump in the pond to put out fire |
 | **Pyroclastic Flow** | 22 s | The eruption column collapses into a searing avalanche of ash aimed at the survivors | Get a solid wall or roof between you and the volcano. The HUD shows SHELTERED / EXPOSED |
 | **Aftermath** | 15 s | Vents die down, flows crust over into walkable basalt | Glowing rock still burns |
 | Results | 10 s | Survivors are listed | |
@@ -56,7 +56,8 @@ Testing tips:
 - Stability: each edge moves at most 1/8 of its surface step (the monotonicity bound for an explicit 4-neighbour solver, which removes checkerboard flicker), with 3 sub-iterations per 10 Hz tick to keep throughput.
 - Thin sheets cool faster than deep pools. Cold lava **freezes into crust that raises the ground**, so later flows pile on top of earlier ones.
 - Ground comes from raycasts against terrain *and* buildings, so lava flows around houses. When a house collapses, the cells under it are re-sampled and lava pours into the gap.
-- Lava touching timber sets it on fire. Players wading in molten lava are slowed, burned and set alight.
+- Lava touching timber sets it on fire.
+- Touching molten lava hits you with a **short burst** (3 quick hits), slows you and **sets you on fire**. Being on fire then **pokes you with small ticks** until it burns out. Stay in the lava and the burst repeats every 1.25 s. **Jumping in the pond** puts the fire out, removes the flames and cancels any lava hits still queued.
 
 ### Network streaming (`shared/LavaGrid.luau`)
 - The server never replicates lava Parts. Changed cells are packed into a `buffer` (9 bytes per cell) and only sent when the change is visible (depth > 8 cm, or a temperature band change). Settled cells are always sent exactly.
@@ -76,6 +77,11 @@ Testing tips:
 - Every house and tree gets a **support graph** built from touching parts. When a part breaks or burns through, a breadth-first search from grounded parts finds everything that lost support and drops it with a staggered delay, so buildings crumble.
 - Glass shatters into shards. Tremors crack windows. Debris uses a collision group that cannot fling players.
 
+### Rockfall (`server/Tremors.luau`, `client/RockfallEffects.luau`)
+- Boulders shake loose from the summit (some on the flank facing the players) and tumble down under real physics.
+- Every frame the server compares each boulder's velocity with the last frame's. A sudden change (a landing, a bounce, smashing into a wall) sets off a **blast with falloff**, and a direct hit on a player bursts too. Rolling smoothly does nothing, so a tumbling rock thumps down the slope.
+- Damage scales with boulder size and impact strength and is capped well below a one-shot (38 at most), with knockback, so it scares people off the flanks rather than killing outright. Clients show a dust burst, rock chips and a camera thump.
+
 ### Fire (`server/Combustion.luau`)
 - Heat-based spread between flammable materials, faster upward (fire climbs). Parts char as they burn, then run out of fuel and give way, which feeds the collapse system.
 
@@ -89,6 +95,7 @@ Testing tips:
 - Between rounds only the chunks that craters touched are rewritten. The village is rebuilt from a fixed seed.
 
 ### Also
+- A red flash at the screen edges on every hit, scaled by damage. It snaps in and fades straight back out, so a burst of hits reads as a burst of flashes and nothing ever lingers on screen.
 - Camera shake that is undone before the default camera updates, so it never drifts your view.
 - A round director with a phase janitor, so ending a phase or a round always cleans up every thread, source and effect it started.
 
@@ -119,7 +126,7 @@ caldera/
 │  └─ MapBuilder.luau
 ├─ src/client/                 StarterPlayerScripts.CalderaClient
 │  ├─ init.client.luau
-│  ├─ LavaRenderer.luau, BombRenderer.luau, PyroclasticVisual.luau
+│  ├─ LavaRenderer.luau, BombRenderer.luau, PyroclasticVisual.luau, RockfallEffects.luau
 │  ├─ AshSky.luau, CameraShake.luau
 │  └─ HUD.luau
 ├─ tests/                      offline tests for the pure modules

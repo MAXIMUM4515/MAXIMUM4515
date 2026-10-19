@@ -68,7 +68,19 @@ Config.Tremor = {
 	MaxBoulders = 14,
 	BoulderSize = { Min = 3.5, Max = 7.5 },
 	BoulderLifetime = 22,
-	BoulderDamageSpeed = 16, -- minimum impact speed before a boulder hurts anything
+	-- Fraction of boulders shaken loose on the flank facing the players instead of a random one.
+	BoulderAimChance = 0.35,
+	-- Boulders burst on every hard landing or bounce: a blast with falloff that hurts and throws
+	-- people, but is capped well below a one-shot so it scares rather than kills outright.
+	BoulderBlast = {
+		ImpactSpeed = 28, -- sudden change in velocity that counts as a hard hit
+		HitSpeed = 12, -- minimum speed for a direct hit on a player to burst
+		Radius = 12, -- for the largest boulder; smaller ones shrink toward 70%
+		Damage = 38, -- point blank, largest boulder, hardest hit
+		Knockback = 55,
+		Cooldown = 0.6, -- per boulder, so a bouncing rock thumps instead of buzzing
+		PlayerCooldown = 1.5, -- the same boulder can't hurt the same player again within this
+	},
 }
 
 Config.Lava = {
@@ -107,7 +119,11 @@ Config.Lava = {
 	-- Hazard thresholds.
 	HarmfulTemp = 0.2,
 	HarmfulDepth = 0.12,
-	DamagePerSecond = 42,
+	-- Touching molten lava: a short burst of hits, then the player is set on fire (see Config.Player).
+	BurstHits = 3,
+	BurstHitDamage = 8, -- per hit at full temperature (cooler lava does down to 60%)
+	BurstHitInterval = 0.1,
+	BurstCooldown = 1.25, -- still standing in it after this long? Another burst.
 	WadeSpeed = 9,
 
 	-- Network quantisation thresholds (centistuds / temperature bytes).
@@ -182,9 +198,11 @@ Config.Fire = {
 		[Enum.Material.Fabric] = 6,
 	},
 	CharColor = Color3.fromRGB(38, 30, 26),
+	-- Standing next to flames: a poke of damage every interval, with a chance to catch fire.
 	PlayerRadius = 5.5,
-	PlayerDamagePerSecond = 9,
-	PlayerIgniteChance = 0.12,
+	PlayerTickDamage = 4,
+	PlayerTickInterval = 0.6,
+	PlayerIgniteChance = 0.25,
 }
 
 Config.Structures = {
@@ -205,8 +223,10 @@ Config.Structures = {
 }
 
 Config.Player = {
-	BurnDuration = 4,
-	BurnDamagePerSecond = 7,
+	-- Being on fire: small damage pokes at a steady rhythm until it burns out or you reach water.
+	BurnDuration = 5,
+	BurnTickDamage = 3,
+	BurnTickInterval = 0.5,
 	HazardTick = 0.1,
 }
 

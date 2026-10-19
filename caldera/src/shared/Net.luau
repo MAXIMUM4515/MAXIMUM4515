@@ -24,6 +24,7 @@ local EVENT_NAMES = {
 	"BombLaunched", -- (bomb data)
 	"Pyroclastic", -- (flow data)
 	"CameraImpulse", -- (position, strength, radius)
+	"RockImpact", -- (position, boulderSize, power)
 	"Knockback", -- server -> client (velocity, tumble)
 }
 

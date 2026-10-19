@@ -389,7 +389,8 @@ function MapBuilder.BuildLobby()
 		BackgroundTransparency = 1,
 		Text = table.concat({
 			"• Lava bombs are marked by red rings on the ground. Move!",
-			"• Molten lava burns and slows you. Cooled black crust is safe.",
+			"• Boulders crash down the slopes and burst where they land.",
+			"• Molten lava burns, slows you and sets you on fire. Cooled black crust is safe.",
 			"• Fire spreads through timber houses and trees.",
 			"• On fire? Jump in the village pond.",
 			"• Pyroclastic flow: hide behind solid walls or under a roof.",

@@ -15,6 +15,7 @@ local LavaRenderer = require(script.LavaRenderer)
 local BombRenderer = require(script.BombRenderer)
 local AshSky = require(script.AshSky)
 local PyroclasticVisual = require(script.PyroclasticVisual)
+local RockfallEffects = require(script.RockfallEffects)
 local HUD = require(script.HUD)
 
 local player = Players.LocalPlayer
@@ -34,6 +35,7 @@ start("CameraShake", CameraShake)
 start("LavaRenderer", LavaRenderer)
 start("BombRenderer", BombRenderer)
 start("PyroclasticVisual", PyroclasticVisual)
+start("RockfallEffects", RockfallEffects)
 start("AshSky", AshSky)
 
 Net.Event("Knockback").OnClientEvent:Connect(function(velocity: Vector3, tumble: boolean)

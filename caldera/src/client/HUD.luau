@@ -1,6 +1,6 @@
 --[[
 	HUD
-	Phase banner and timer, announcements, heat meter and screen-edge glow, the shelter check
+	Phase banner and timer, announcements, heat meter, a red flash on every hit, the shelter check
 	during the pyroclastic flow, a kill feed and the end-of-round survivors panel.
 	Built entirely in code so the place needs no UI assets.
 ]]
@@ -60,7 +60,7 @@ end
 --------------------------------------------------------------------------------------------
 
 local gui: ScreenGui
-local glowGui: ScreenGui
+local flashGui: ScreenGui
 local phaseLabel: TextLabel
 local infoLabel: TextLabel
 local panelStroke: UIStroke
@@ -72,7 +72,8 @@ local burnLabel: TextLabel
 local shelterPill: TextLabel
 local feed: Frame
 local resultsPanel: Frame
-local glow: CanvasGroup
+local flashEdges: { Frame } = {}
+local flashTweens: { Tween } = {}
 
 local bannerToken = 0
 local toastToken = 0
@@ -240,19 +241,15 @@ local function build()
 		Parent = gui,
 	}, { corner(14), create("UIStroke", { Thickness = 2, Color = C.Rumbling, Transparency = 0.2 }) })
 
-	-- Screen-edge heat glow, drawn under the inset so it reaches the very top of the screen.
-	glowGui = create("ScreenGui", {
-		Name = "CalderaHeatGlow",
+	-- Damage flash: red screen edges, drawn under the inset so they reach the very top of the screen.
+	-- Fully transparent until a hit lands (see flashDamage). Each edge's own transparency is driven
+	-- directly rather than through a CanvasGroup, so visibility never depends on group rendering.
+	flashGui = create("ScreenGui", {
+		Name = "CalderaDamageFlash",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		DisplayOrder = -1,
 		Parent = player:WaitForChild("PlayerGui"),
-	})
-	glow = create("CanvasGroup", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		GroupTransparency = 1,
-		Parent = glowGui,
 	})
 	local edges = {
 		{ UDim2.fromScale(1, 0.28), UDim2.fromScale(0, 0), 90 },
@@ -261,19 +258,59 @@ local function build()
 		{ UDim2.fromScale(0.2, 1), UDim2.fromScale(0.8, 0), 180 },
 	}
 	for _, edge in edges do
-		create("Frame", {
-			Size = edge[1],
-			Position = edge[2],
-			BorderSizePixel = 0,
-			BackgroundColor3 = Color3.fromRGB(255, 80, 20),
-			Parent = glow,
-		}, {
-			create("UIGradient", {
-				Rotation = edge[3],
-				Transparency = NumberSequence.new(0, 1),
-			}),
-		})
+		table.insert(
+			flashEdges,
+			create("Frame", {
+				Size = edge[1],
+				Position = edge[2],
+				BorderSizePixel = 0,
+				BackgroundColor3 = Color3.fromRGB(220, 24, 16),
+				BackgroundTransparency = 1,
+				Parent = flashGui,
+			}, {
+				create("UIGradient", {
+					Rotation = edge[3],
+					Transparency = NumberSequence.new(0, 1),
+				}),
+			})
+		)
 	end
+end
+
+--------------------------------------------------------------------------------------------
+
+local FLASH_FADE = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+-- Snaps the edges red and fades them straight back out. A new hit restarts the flash, so a burst
+-- of hits reads as a burst of flashes and nothing ever stays on screen.
+local function flashDamage(strength: number)
+	local opacity = math.clamp(strength, 0.25, 0.8)
+	for i, edge in flashEdges do
+		local running = flashTweens[i]
+		if running then
+			running:Cancel()
+		end
+		edge.BackgroundTransparency = 1 - opacity
+		local tween = TweenService:Create(edge, FLASH_FADE, { BackgroundTransparency = 1 })
+		flashTweens[i] = tween
+		tween:Play()
+	end
+end
+
+local function watchHealth(character: Model)
+	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not humanoid then
+		return
+	end
+	local last = humanoid.Health
+	humanoid.HealthChanged:Connect(function(health)
+		local lost = last - health
+		last = health
+		-- Only losses flash (not regeneration), and bigger hits flash harder.
+		if lost > 0.5 then
+			flashDamage(0.3 + 1.2 * math.min(lost / math.max(humanoid.MaxHealth, 1), 0.4))
+		end
+	end)
 end
 
 --------------------------------------------------------------------------------------------
@@ -481,6 +518,11 @@ function HUD.Start()
 	Net.Event("KillFeed").OnClientEvent:Connect(addFeed)
 	Net.Event("Results").OnClientEvent:Connect(showResults)
 
+	player.CharacterAdded:Connect(watchHealth)
+	if player.Character then
+		task.spawn(watchHealth, player.Character)
+	end
+
 	local heat = 0
 	local statusTimer, shelterTimer = 0, 0
 	RunService.RenderStepped:Connect(function(dt)
@@ -501,8 +543,6 @@ function HUD.Start()
 		heatFrame.Visible = heat > 0.02 or burning
 		heatFill.Size = UDim2.fromScale(math.clamp(heat, 0, 1), 1)
 		burnLabel.Visible = burning
-		local pulse = if burning then 0.12 * math.sin(os.clock() * 8) else 0
-		glow.GroupTransparency = 1 - math.clamp(heat * 0.75 + pulse, 0, 0.85)
 	end)
 end
 

@@ -3,10 +3,15 @@
 	Ground shaking. The intensity is replicated as an attribute for client camera shake; on the
 	server it jolts loose props, cracks windows and shakes boulders loose from the summit, which
 	then roll down the flanks under real physics.
+
+	Boulders burst every time they land hard: each frame the server compares a boulder's velocity
+	with the last frame's, and a sudden change (a bounce, a landing, smashing into a wall) sets off
+	a blast with falloff. Rolling smoothly does nothing, so a tumbling rock thumps down the slope.
+	The blast is capped well below a one-shot: it is there to scare people off the flanks.
 ]]
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Caldera")
 local Config = require(Shared.Config)
@@ -15,15 +20,27 @@ local Hazards = require(script.Parent.Hazards)
 local Structures = require(script.Parent.Structures)
 
 local T = Config.Tremor
+local BB = T.BoulderBlast
 local V = Config.Volcano
 
 local Tremors = {}
 
+type Boulder = {
+	Part: BasePart,
+	-- 0.55 for the smallest boulder up to 1 for the largest; scales blast radius and damage.
+	Scale: number,
+	LastVelocity: Vector3,
+	NextBlast: number,
+	-- When this boulder last hurt each character, so one rock can't land two blasts back to back.
+	LastHit: { [Model]: number },
+}
+
 local intensity = 0
 local bouldersEnabled = false
-local boulders: { BasePart } = {}
+local boulders: { Boulder } = {}
 local folders
 local rng = Random.new()
+local rockImpactEvent = Net.Event("RockImpact")
 
 local terrainParams = RaycastParams.new()
 terrainParams.FilterType = Enum.RaycastFilterType.Include
@@ -65,18 +82,75 @@ local function pulse()
 	end
 end
 
-local function spawnBoulder()
-	-- Clean up the list and respect the cap.
+local function blast(boulder: Boulder, power: number)
+	local now = os.clock()
+	if now < boulder.NextBlast then
+		return
+	end
+	boulder.NextBlast = now + BB.Cooldown
+
+	local part = boulder.Part
+	local position = part.Position
+	local radius = BB.Radius * (0.7 + 0.3 * boulder.Scale)
+	local function canHit(state): boolean
+		local last = boulder.LastHit[state.Character]
+		if last and now - last < BB.PlayerCooldown then
+			return false
+		end
+		boulder.LastHit[state.Character] = now
+		return true
+	end
+	Hazards.Explode(
+		position,
+		radius,
+		BB.Damage * boulder.Scale * power,
+		BB.Knockback * power,
+		"a falling boulder",
+		{ workspace.Terrain, folders.Structures },
+		false,
+		canHit
+	)
+	Structures.DamageRadius(position, radius * 0.6, 45 * power, 25)
+	rockImpactEvent:FireAllClients(position, part.Size.X, power)
+end
+
+-- Harder hits give a bigger blast, from 45% at the threshold to full strength.
+local function impactPower(speed: number): number
+	return math.clamp(speed / 60, 0.45, 1)
+end
+
+local function watchImpacts()
 	for i = #boulders, 1, -1 do
-		if not boulders[i].Parent then
+		local boulder = boulders[i]
+		if not boulder.Part.Parent then
 			table.remove(boulders, i)
+		else
+			local velocity = boulder.Part.AssemblyLinearVelocity
+			local change = (velocity - boulder.LastVelocity).Magnitude
+			boulder.LastVelocity = velocity
+			if change >= BB.ImpactSpeed then
+				blast(boulder, impactPower(change))
+			end
 		end
 	end
+end
+
+-- Mostly random, but some boulders come loose on the flank facing the players.
+local function pickAngle(): number
+	local targets = Hazards.Participants()
+	if #targets > 0 and rng:NextNumber() < T.BoulderAimChance then
+		local offset = targets[rng:NextInteger(1, #targets)].Root.Position - V.Center
+		return math.atan2(offset.Z, offset.X) + rng:NextNumber(-0.3, 0.3)
+	end
+	return rng:NextNumber(-math.pi, math.pi)
+end
+
+local function spawnBoulder()
 	if #boulders >= T.MaxBoulders then
 		return
 	end
 
-	local angle = rng:NextNumber(-math.pi, math.pi)
+	local angle = pickAngle()
 	local distance = rng:NextNumber(V.SummitRadius + 4, V.SummitRadius + 30)
 	local x = V.Center.X + math.cos(angle) * distance
 	local z = V.Center.Z + math.sin(angle) * distance
@@ -86,49 +160,47 @@ local function spawnBoulder()
 	end
 
 	local size = rng:NextNumber(T.BoulderSize.Min, T.BoulderSize.Max)
-	local boulder = Instance.new("Part")
-	boulder.Name = "Boulder"
-	boulder.Shape = Enum.PartType.Ball
-	boulder.Size = Vector3.one * size
-	boulder.Material = Enum.Material.Basalt
-	boulder.Color = Color3.fromRGB(58, 52, 50)
-	boulder.CFrame = CFrame.new(result.Position + result.Normal * (size / 2 + 0.5))
-	boulder.CustomPhysicalProperties = PhysicalProperties.new(2.6, 0.5, 0.15)
-	boulder.Parent = folders.Effects
-	pcall(boulder.SetNetworkOwner, boulder, nil)
+	local part = Instance.new("Part")
+	part.Name = "Boulder"
+	part.Shape = Enum.PartType.Ball
+	part.Size = Vector3.one * size
+	part.Material = Enum.Material.Basalt
+	part.Color = Color3.fromRGB(58, 52, 50)
+	part.CFrame = CFrame.new(result.Position + result.Normal * (size / 2 + 0.5))
+	part.CustomPhysicalProperties = PhysicalProperties.new(2.6, 0.5, 0.15)
+	part.Parent = folders.Effects
+	pcall(part.SetNetworkOwner, part, nil)
 
 	local outward = Vector3.new(math.cos(angle), 0, math.sin(angle))
-	boulder.AssemblyLinearVelocity = outward * rng:NextNumber(12, 24)
-	boulder.AssemblyAngularVelocity = outward:Cross(Vector3.yAxis) * -rng:NextNumber(2, 5)
+	part.AssemblyLinearVelocity = outward * rng:NextNumber(12, 24)
+	part.AssemblyAngularVelocity = outward:Cross(Vector3.yAxis) * -rng:NextNumber(2, 5)
+
+	local sizeAlpha = (size - T.BoulderSize.Min) / (T.BoulderSize.Max - T.BoulderSize.Min)
+	local boulder: Boulder = {
+		Part = part,
+		Scale = 0.55 + 0.45 * sizeAlpha,
+		LastVelocity = part.AssemblyLinearVelocity,
+		NextBlast = 0,
+		LastHit = {},
+	}
 	table.insert(boulders, boulder)
 
-	local cooldown: { [Instance]: number } = {}
-	boulder.Touched:Connect(function(other)
-		local speed = boulder.AssemblyLinearVelocity.Magnitude
-		if speed < T.BoulderDamageSpeed then
-			return
-		end
+	part.Touched:Connect(function(other)
+		local speed = part.AssemblyLinearVelocity.Magnitude
 		local model = other:FindFirstAncestorOfClass("Model")
-		local humanoid = model and model:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			local now = os.clock()
-			if (cooldown[humanoid] or 0) > now then
-				return
+		if model and model:FindFirstChildOfClass("Humanoid") then
+			-- Barely slows a heavy boulder, so the velocity check would miss it: burst on contact instead.
+			if speed >= BB.HitSpeed then
+				blast(boulder, impactPower(speed))
 			end
-			cooldown[humanoid] = now + 1
-			Hazards.Damage(humanoid, math.clamp(speed * 0.9, 10, 45), "a falling boulder")
-			local player = Players:GetPlayerFromCharacter(model)
-			if player then
-				Hazards.Knockback(player, boulder.AssemblyLinearVelocity * 0.8 + Vector3.new(0, 25, 0), true)
-			end
-		elseif Structures.IsTracked(other) and speed > 25 then
-			Structures.Damage(other, speed * 1.2, boulder.AssemblyLinearVelocity * 0.4)
+		elseif speed > 25 and Structures.IsTracked(other) then
+			Structures.Damage(other, speed * 1.2, part.AssemblyLinearVelocity * 0.4)
 		end
 	end)
 
 	task.delay(T.BoulderLifetime, function()
-		if boulder.Parent then
-			boulder:Destroy()
+		if part.Parent then
+			part:Destroy()
 		end
 	end)
 end
@@ -136,6 +208,7 @@ end
 function Tremors.Init(mapFolders)
 	folders = mapFolders
 	Tremors.SetIntensity(0)
+	RunService.Heartbeat:Connect(watchImpacts)
 
 	task.spawn(function()
 		while true do
@@ -164,7 +237,7 @@ function Tremors.Reset()
 	Tremors.SetIntensity(0)
 	bouldersEnabled = false
 	for _, boulder in boulders do
-		boulder:Destroy()
+		boulder.Part:Destroy()
 	end
 	table.clear(boulders)
 end
