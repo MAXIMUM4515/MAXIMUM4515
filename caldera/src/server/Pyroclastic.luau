@@ -1,8 +1,8 @@
 --[[
 	Pyroclastic
 	A searing avalanche of ash and gas that bursts from the crater and races outward across a
-	wide sector. It is the climax of the eruption and the one hazard you cannot outrun:
-	you survive it by getting solid geometry between you and the volcano.
+	wide sector. It is the climax of the eruption and the one hazard you cannot outrun: out in the
+	open it is fatal, and only a proper building (a house or the bunker, see Shelter) saves you.
 
 	The front is an expanding arc. Everything is pre-sorted by distance from the crater, so as
 	the radius grows the server simply walks a pointer through the list instead of scanning
@@ -106,7 +106,7 @@ local function strikePlayer(state, origin: Vector3)
 		announceEvent:FireClient(state.Player, "Your shelter held!", Config.Colors.Good, 2.5, "small")
 	else
 		Hazards.Damage(state.Humanoid, PF.Damage, "the pyroclastic flow")
-		Hazards.SetOnFire(state, PL.BurnDuration + 2, "the pyroclastic flow")
+		Hazards.SetOnFire(state, PL.IgniteMeter.Pyroclastic, "the pyroclastic flow")
 		local outward = horizontal(state.Root.Position - origin)
 		outward = if outward.Magnitude > 0.1 then outward.Unit else Vector3.xAxis
 		Hazards.Knockback(state.Player, outward * PF.Knockback + Vector3.new(0, PF.Knockback * 0.4, 0), true)
@@ -174,7 +174,8 @@ end
 
 function Pyroclastic.Init(mapFolders)
 	folders = mapFolders
-	shelterParams.FilterDescendantsInstances = { workspace.Terrain, mapFolders.Structures }
+	-- Only buildings can shelter anyone: terrain, rocks, trees and props are deliberately left out.
+	shelterParams.FilterDescendantsInstances = { mapFolders.Structures }
 end
 
 return Pyroclastic

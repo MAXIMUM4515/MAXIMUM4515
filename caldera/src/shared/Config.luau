@@ -165,14 +165,16 @@ Config.Pyroclastic = {
 	MaxRadius = 390,
 	HalfAngle = math.rad(70),
 	FrontWidth = 14,
-	Damage = 75,
+	-- Out in the open the flow is fatal; only a proper building lets you live through it.
+	Damage = 150,
 	ShelteredDamage = 8,
 	Knockback = 95,
 	IgniteChance = 0.55,
 	StructureDamage = 30,
 	PropForce = 55,
 	-- Shelter test (shared with the HUD so players see the same verdict the server uses).
-	ShelterProbe = 28,
+	-- The wall probe is short so it only finds walls of the building you are standing in.
+	ShelterProbe = 20,
 	RoofProbe = 40,
 }
 
@@ -223,10 +225,15 @@ Config.Structures = {
 }
 
 Config.Player = {
-	-- Being on fire: small damage pokes at a steady rhythm until it burns out or you reach water.
-	BurnDuration = 5,
-	BurnTickDamage = 3,
+	-- The burn meter (0..1). While it is up you are on fire. Molten lava fills it, and nothing
+	-- but the lake empties it: it never cools down on its own.
+	MeterFillTime = 4, -- seconds of continuous lava contact to reach MAX
+	MeterDrainTime = 3, -- seconds for the lake to empty it, from whatever level it is at
+	-- Other things that set you alight raise the meter to at least this level.
+	IgniteMeter = { Blast = 0.2, Fire = 0.15, Pyroclastic = 0.5 },
+	-- On fire: a poke of damage every interval, harder the fuller the meter.
 	BurnTickInterval = 0.5,
+	BurnTickDamage = { Min = 2, Max = 6 },
 	HazardTick = 0.1,
 }
 

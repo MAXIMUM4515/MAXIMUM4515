@@ -1,8 +1,11 @@
 --[[
 	HUD
-	Phase banner and timer, announcements, heat meter, a red flash on every hit, the shelter check
-	during the pyroclastic flow, a kill feed and the end-of-round survivors panel.
+	Phase banner and timer, announcements, the vertical heat (burn) meter, a red flash on every hit,
+	the shelter check during the pyroclastic flow, a kill feed and the end-of-round survivors panel.
 	Built entirely in code so the place needs no UI assets.
+
+	Layout, top to bottom: status panel, shelter pill, announcement banner (text scales down to fit
+	its box, so a long line can never spill over the others). The heat meter sits on the left edge.
 ]]
 
 local Players = game:GetService("Players")
@@ -65,10 +68,13 @@ local phaseLabel: TextLabel
 local infoLabel: TextLabel
 local panelStroke: UIStroke
 local banner: TextLabel
+local bannerTextSize: UITextSizeConstraint
 local toast: TextLabel
-local heatFrame: Frame
-local heatFill: Frame
-local burnLabel: TextLabel
+local meterFrame: Frame
+local meterFill: Frame
+local meterStroke: UIStroke
+local meterMax: TextLabel
+local meterHint: TextLabel
 local shelterPill: TextLabel
 local feed: Frame
 local resultsPanel: Frame
@@ -77,6 +83,9 @@ local flashTweens: { Tween } = {}
 
 local bannerToken = 0
 local toastToken = 0
+
+-- The banner starts below the status panel (8..74) and the shelter pill (82..116).
+local BANNER_TOP = 126
 
 local function build()
 	gui = create("ScreenGui", {
@@ -119,14 +128,15 @@ local function build()
 		Parent = panel,
 	})
 
+	bannerTextSize = create("UITextSizeConstraint", { MaxTextSize = 30 })
 	banner = create("TextLabel", {
 		Name = "Banner",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.24),
-		Size = UDim2.new(0.86, 0, 0, 60),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, BANNER_TOP),
+		Size = UDim2.new(0.86, 0, 0, 48),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamBlack,
-		TextSize = 32,
+		TextScaled = true,
 		TextWrapped = true,
 		TextColor3 = TEXT,
 		TextStrokeTransparency = 0.35,
@@ -134,7 +144,7 @@ local function build()
 		TextTransparency = 1,
 		Text = "",
 		Parent = gui,
-	})
+	}, { bannerTextSize })
 
 	toast = create("TextLabel", {
 		Name = "Toast",
@@ -167,51 +177,90 @@ local function build()
 		Parent = gui,
 	}, { corner(17) })
 
-	-- Heat meter.
-	heatFrame = create("Frame", {
-		Name = "Heat",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -96),
-		Size = UDim2.fromOffset(280, 16),
+	-- Heat meter: a vertical gauge on the left edge that fills from the bottom. Hidden until you get
+	-- burned; it only empties in the lake. The notches mark each second of lava contact.
+	meterFrame = create("Frame", {
+		Name = "HeatMeter",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 22, 0.5, 0),
+		Size = UDim2.fromOffset(26, 260),
 		BackgroundColor3 = PANEL,
 		BackgroundTransparency = 0.25,
 		Visible = false,
 		Parent = gui,
-	}, { corner(8) })
-	heatFill = create("Frame", {
-		Size = UDim2.fromScale(0, 1),
+	}, { corner(13) })
+	meterStroke = create("UIStroke", {
+		Thickness = 2,
+		Color = Color3.fromRGB(255, 120, 50),
+		Transparency = 0.35,
+		Parent = meterFrame,
+	})
+	meterFill = create("Frame", {
+		Name = "Fill",
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.fromScale(1, 0),
 		BackgroundColor3 = Color3.new(1, 1, 1),
-		Parent = heatFrame,
+		BorderSizePixel = 0,
+		Parent = meterFrame,
 	}, {
-		corner(8),
+		corner(13),
+		-- Yellow at the bottom, red at the top.
 		create("UIGradient", {
-			Color = ColorSequence.new(Color3.fromRGB(255, 196, 70), Color3.fromRGB(255, 56, 30)),
+			Rotation = -90,
+			Color = ColorSequence.new(Color3.fromRGB(255, 206, 80), Color3.fromRGB(255, 40, 20)),
 		}),
 	})
+	for notch = 1, 3 do
+		create("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 1 - notch / 4),
+			Size = UDim2.new(1, -8, 0, 2),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.55,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			Parent = meterFrame,
+		})
+	end
 	create("TextLabel", {
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(0, -8, 0.5, 0),
-		Size = UDim2.fromOffset(60, 16),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 1, 8),
+		Size = UDim2.fromOffset(80, 18),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamBlack,
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Right,
+		TextSize = 15,
 		TextColor3 = Color3.fromRGB(255, 170, 90),
+		TextStrokeTransparency = 0.5,
 		Text = "HEAT",
-		Parent = heatFrame,
+		Parent = meterFrame,
 	})
-	burnLabel = create("TextLabel", {
+	meterMax = create("TextLabel", {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 0, -6),
-		Size = UDim2.fromOffset(320, 22),
+		Size = UDim2.fromOffset(80, 20),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBlack,
+		TextSize = 18,
+		TextColor3 = Color3.fromRGB(255, 60, 40),
+		TextStrokeTransparency = 0.4,
+		Text = "MAX",
+		Visible = false,
+		Parent = meterFrame,
+	})
+	meterHint = create("TextLabel", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(1, 12, 0.5, 0),
+		Size = UDim2.fromOffset(180, 46),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamBold,
-		TextSize = 18,
+		TextSize = 17,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
 		TextColor3 = Color3.fromRGB(255, 140, 60),
 		TextStrokeTransparency = 0.4,
-		Text = "YOU'RE ON FIRE! Find water!",
-		Visible = false,
-		Parent = heatFrame,
+		Text = "",
+		Parent = meterFrame,
 	})
 
 	-- Kill feed, top right.
@@ -342,15 +391,15 @@ local function announce(text: string, color: Color3?, duration: number?, style: 
 	local token = bannerToken
 	banner.Text = text
 	banner.TextColor3 = color or TEXT
-	banner.TextSize = if style == "big" then 40 else 30
-	banner.Size = UDim2.new(0.86, 0, 0, if style == "big" then 96 else 60)
+	bannerTextSize.MaxTextSize = if style == "big" then 44 else 30
+	banner.Size = UDim2.new(0.86, 0, 0, if style == "big" then 60 else 48)
 	fadeText(banner, true, 0.25)
 	-- A quick punch-in for big alerts.
 	if style == "big" then
-		banner.Position = UDim2.fromScale(0.5, 0.21)
-		TweenService
-			:Create(banner, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Position = UDim2.fromScale(0.5, 0.24) })
-			:Play()
+		banner.Position = UDim2.new(0.5, 0, 0, BANNER_TOP - 14)
+		TweenService:Create(banner, TweenInfo.new(0.35, Enum.EasingStyle.Back), {
+			Position = UDim2.new(0.5, 0, 0, BANNER_TOP),
+		}):Play()
 	end
 	task.delay(hold, function()
 		if token == bannerToken then
@@ -498,17 +547,16 @@ local function updateShelter()
 		shelterPill.Visible = false
 		return
 	end
+	-- Same rule as the server: only buildings can shelter you.
 	local caldera = workspace:FindFirstChild("Caldera")
 	local structures = caldera and caldera:FindFirstChild("Structures")
-	shelterParams.FilterDescendantsInstances = if structures
-		then { workspace.Terrain, structures }
-		else { workspace.Terrain }
-	local sheltered =
-		Shelter.Evaluate(root.Position, Config.Volcano.Center + Vector3.new(0, Config.Volcano.Height, 0), shelterParams)
+	shelterParams.FilterDescendantsInstances = if structures then { structures } else {}
+	local volcano = Config.Volcano.Center + Vector3.new(0, Config.Volcano.Height, 0)
+	local sheltered = Shelter.Evaluate(root.Position, volcano, shelterParams)
 	shelterPill.Visible = true
-	shelterPill.Text = if sheltered then "SHELTERED ✓" else "EXPOSED: get behind a solid wall!"
+	shelterPill.Text = if sheltered then "SHELTERED ✓" else "EXPOSED: get inside a house or the bunker!"
 	shelterPill.BackgroundColor3 = if sheltered then Color3.fromRGB(46, 150, 80) else C.Bad
-	shelterPill.Size = UDim2.fromOffset(if sheltered then 200 else 360, 34)
+	shelterPill.Size = UDim2.fromOffset(if sheltered then 200 else 400, 34)
 end
 
 function HUD.Start()
@@ -523,7 +571,7 @@ function HUD.Start()
 		task.spawn(watchHealth, player.Character)
 	end
 
-	local heat = 0
+	local shown = 0
 	local statusTimer, shelterTimer = 0, 0
 	RunService.RenderStepped:Connect(function(dt)
 		statusTimer += dt
@@ -537,12 +585,24 @@ function HUD.Start()
 			updateShelter()
 		end
 
-		local target = player:GetAttribute("Heat") or 0
-		heat += (target - heat) * math.min(1, dt * 8)
+		-- Heat meter: eases toward the server's value; visible from the first burn until the lake
+		-- has emptied it.
+		local target = player:GetAttribute("BurnMeter") or 0
+		shown += (target - shown) * math.min(1, dt * 12)
+		if target <= 0 and shown < 0.004 then
+			shown = 0
+		end
 		local burning = player:GetAttribute("Burning") == true
-		heatFrame.Visible = heat > 0.02 or burning
-		heatFill.Size = UDim2.fromScale(math.clamp(heat, 0, 1), 1)
-		burnLabel.Visible = burning
+		meterFrame.Visible = shown > 0 or burning
+		meterFill.Size = UDim2.fromScale(1, math.clamp(shown, 0, 1))
+		local full = target >= 1
+		meterMax.Visible = full
+		if full then
+			meterMax.TextTransparency = 0.25 + 0.25 * math.sin(os.clock() * 10)
+		end
+		meterHint.Text = if burning then "ON FIRE!\nGet to the lake!" else "Cooling off..."
+		meterHint.TextColor3 = if burning then Color3.fromRGB(255, 140, 60) else Color3.fromRGB(140, 200, 255)
+		meterStroke.Color = if burning then Color3.fromRGB(255, 120, 50) else Color3.fromRGB(120, 190, 255)
 	end)
 end
 

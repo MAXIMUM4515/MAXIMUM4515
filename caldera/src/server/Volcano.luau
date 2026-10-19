@@ -278,7 +278,7 @@ function handlers.Eruption(_duration: number)
 end
 
 function handlers.Pyroclastic(_duration: number)
-	announce("The eruption column is collapsing... PYROCLASTIC FLOW! Get behind solid walls!", C.Pyroclastic, 5, "big")
+	announce("PYROCLASTIC FLOW!", C.Pyroclastic, 4, "big")
 	blast(crater + Vector3.new(0, 10, 0), 50)
 	impulseEvent:FireAllClients(crater, 1.1, 900)
 	Tremors.SetIntensity(T.PyroclasticIntensity)

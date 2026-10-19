@@ -40,8 +40,8 @@ Testing tips:
 |---|---|---|---|
 | Intermission | 25 s | Players wait in the lobby; the village is rebuilt | Read the board |
 | **Rumbling** | 18 s | Tremors build, steam vents hiss, boulders break off the summit, bounce down the flanks and burst where they land | Keep off the slopes; a burst hurts badly but won't one-shot you |
-| **Eruption** | 55 s | The crater explodes; lava floods through the breach toward the village; lava bombs fall on red warning rings; a fissure opens on a flank; ash darkens the sky | Dodge rings, stay out of molten lava, avoid burning houses, jump in the pond to put out fire |
-| **Pyroclastic Flow** | 22 s | The eruption column collapses into a searing avalanche of ash aimed at the survivors | Get a solid wall or roof between you and the volcano. The HUD shows SHELTERED / EXPOSED |
+| **Eruption** | 55 s | The crater explodes; lava floods through the breach toward the village; lava bombs fall on red warning rings; a fissure opens on a flank; ash darkens the sky | Dodge rings, stay out of molten lava, avoid burning houses. Burning? Only the lake puts it out |
+| **Pyroclastic Flow** | 22 s | The eruption column collapses into a searing avalanche of ash aimed at the survivors | Get inside a house or the concrete bunker, behind a wall facing the volcano. Out in the open it is fatal. The HUD shows SHELTERED / EXPOSED |
 | **Aftermath** | 15 s | Vents die down, flows crust over into walkable basalt | Glowing rock still burns |
 | Results | 10 s | Survivors are listed | |
 
@@ -57,7 +57,9 @@ Testing tips:
 - Thin sheets cool faster than deep pools. Cold lava **freezes into crust that raises the ground**, so later flows pile on top of earlier ones.
 - Ground comes from raycasts against terrain *and* buildings, so lava flows around houses. When a house collapses, the cells under it are re-sampled and lava pours into the gap.
 - Lava touching timber sets it on fire.
-- Touching molten lava hits you with a **short burst** (3 quick hits), slows you and **sets you on fire**. Being on fire then **pokes you with small ticks** until it burns out. Stay in the lava and the burst repeats every 1.25 s. **Jumping in the pond** puts the fire out, removes the flames and cancels any lava hits still queued.
+- Touching molten lava hits you with a **short burst** (3 quick hits), slows you and **sets you on fire**. Stay in it and the burst repeats every 1.25 s.
+- Every moment of contact fills the **heat meter**, a vertical gauge on the left of the screen: empty to **MAX in 4 s** of continuous contact. While it is up you are on fire and take a **poke every 0.5 s that grows with the meter** (2 damage when nearly empty, 6 at MAX).
+- The meter **never cools down on its own**. Only the **lake** helps: the flames and pokes stop at once, queued lava hits are cancelled, and the meter drains to empty over **3 s**, then disappears. Bombs, burning buildings and the pyroclastic flow also set you alight at a lower level.
 
 ### Network streaming (`shared/LavaGrid.luau`)
 - The server never replicates lava Parts. Changed cells are packed into a `buffer` (9 bytes per cell) and only sent when the change is visible (depth > 8 cm, or a temperature band change). Settled cells are always sent exactly.
@@ -87,7 +89,8 @@ Testing tips:
 
 ### Pyroclastic flow (`server/Pyroclastic.luau`, `shared/Shelter.luau`, `client/PyroclasticVisual.luau`)
 - An expanding arc aimed at the survivors. Everything in the sector is **pre-sorted by distance**, so each tick walks a pointer instead of scanning the map.
-- The **shelter test is shared** between server damage and the client HUD, so the "SHELTERED / EXPOSED" indicator never disagrees with the damage you take.
+- Out in the open the flow is fatal. **Only proper buildings shelter you**: models tagged `Shelter` (the houses and the concrete bunker). You need that building's roof over you and its solid walls blocking at least 2 of 3 sightlines toward the volcano. Terrain, rocks, trees, props, the well and debris never count, and glass doesn't stop the flow. An open doorway facing the volcano, or a wall that has burned away, leaves you exposed.
+- The **shelter test is shared** between server damage and the client HUD, so the "SHELTERED / EXPOSED" indicator never disagrees with what happens to you.
 - The cloud hugs the terrain using the shared heightmap (no raycasts) and smothers your screen when it engulfs you.
 
 ### Terrain and map (`server/MapBuilder.luau`, `shared/Heightmap.luau`)
@@ -95,6 +98,7 @@ Testing tips:
 - Between rounds only the chunks that craters touched are rewritten. The village is rebuilt from a fixed seed.
 
 ### Also
+- Players are tracked from the moment their character reaches the Workspace (`CharacterAdded` fires before that), with a safety net in the update loop. A character that slipped through would be immune to every hazard.
 - A red flash at the screen edges on every hit, scaled by damage. It snaps in and fades straight back out, so a burst of hits reads as a burst of flashes and nothing ever lingers on screen.
 - Camera shake that is undone before the default camera updates, so it never drifts your view.
 - A round director with a phase janitor, so ending a phase or a round always cleans up every thread, source and effect it started.
@@ -149,8 +153,9 @@ tools/luaurun/target/release/luaurun tests/run.luau
 ```
 
 The tests cover volume conservation, yield-stopping, downhill flow, the void edge, heat
-mixing, network change filtering, codec round trips, ballistics, the volcano shape, and a
-full eruption on the real heightmap. The eruption test asserts that the lava leaves through
+mixing, network change filtering, codec round trips, ballistics, the volcano shape, the
+shelter rule (against a scripted fake world: terrain, the well, glass, doorways, two houses),
+and a full eruption on the real heightmap. The eruption test asserts that the lava leaves through
 the breach, reaches the village within the round, never spills over the far rim, and crusts
 over in the aftermath.
 

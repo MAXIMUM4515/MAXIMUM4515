@@ -12,6 +12,7 @@ local LavaSim = require("src/server/LavaSim.luau")
 local LavaGrid = require("src/shared/LavaGrid.luau")
 local Ballistics = require("src/shared/Ballistics.luau")
 local Heightmap = require("src/shared/Heightmap.luau")
+local Shelter = require("src/shared/Shelter.luau")
 
 local P = Config.Lava
 local DT = 1 / P.TickRate
@@ -201,6 +202,83 @@ test("volcano shape: crater below rim, breach gorge descends toward the village"
 		previous = h
 	end
 	check(Heightmap.Volcano(V.BaseRadius + 30, 0) == 0, "plains outside the cone")
+end)
+
+print("Shelter")
+
+-- A scripted stand-in for workspace:Raycast. `world.roof` is what the upward probe hits and
+-- `world.walls[i]` what the i-th horizontal probe (knees, chest, head) hits; nil means open air.
+local function model(isShelter: boolean)
+	return {
+		GetAttribute = function(_, name)
+			return if name == "Shelter" and isShelter then true else nil
+		end,
+	}
+end
+local function part(owner, material: string?)
+	return {
+		Material = material or "Enum.Material.WoodPlanks",
+		IsA = function(_, className)
+			return className == "BasePart"
+		end,
+		FindFirstAncestorOfClass = function()
+			return owner
+		end,
+	}
+end
+local terrainBump = part(nil, "Enum.Material.Rock")
+
+local function evaluate(world): boolean
+	local probe = 0
+	workspace = {
+		Raycast = function(_, _origin, direction)
+			local hit
+			if direction.X == 0 and direction.Z == 0 then
+				hit = world.roof
+			else
+				probe += 1
+				hit = world.walls[probe]
+			end
+			return if hit then { Instance = hit } else nil
+		end,
+	}
+	local sheltered = Shelter.Evaluate(Vector3.new(200, 4, 0), Vector3.new(0, 100, 0), {} :: any)
+	workspace = nil
+	return sheltered
+end
+
+local house, otherHouse, well = model(true), model(true), model(false)
+
+test("open ground is exposed", function()
+	check(not evaluate({ walls = {} }), "nothing overhead or in the way")
+end)
+
+test("terrain, rocks and loose parts never count as shelter", function()
+	check(not evaluate({ roof = terrainBump, walls = { terrainBump, terrainBump, terrainBump } }), "terrain")
+	local wellPart = part(well, "Enum.Material.Cobblestone")
+	check(not evaluate({ roof = wellPart, walls = { wellPart, wellPart, wellPart } }), "the well")
+end)
+
+test("inside a house behind a solid wall is sheltered", function()
+	check(evaluate({ roof = part(house), walls = { part(house), part(house), part(house) } }), "solid wall")
+end)
+
+test("glass does not stop the flow, but a window's sill and lintel still count", function()
+	local glass = part(house, "Enum.Material.Glass")
+	check(evaluate({ roof = part(house), walls = { part(house), glass, part(house) } }), "behind a window")
+	check(not evaluate({ roof = part(house), walls = { glass, glass, part(house) } }), "mostly glass")
+end)
+
+test("an open doorway facing the volcano is exposed", function()
+	check(not evaluate({ roof = part(house), walls = { nil, nil, part(house) } }), "doorway")
+end)
+
+test("a wall needs a roof over it, from the same building", function()
+	check(not evaluate({ walls = { part(house), part(house), part(house) } }), "behind a house, no roof")
+	check(
+		not evaluate({ roof = part(otherHouse), walls = { part(house), part(house), part(house) } }),
+		"mixed buildings"
+	)
 end)
 
 print("Scenario: a full eruption on the generated volcano")

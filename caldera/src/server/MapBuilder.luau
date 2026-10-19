@@ -390,10 +390,9 @@ function MapBuilder.BuildLobby()
 		Text = table.concat({
 			"• Lava bombs are marked by red rings on the ground. Move!",
 			"• Boulders crash down the slopes and burst where they land.",
-			"• Molten lava burns, slows you and sets you on fire. Cooled black crust is safe.",
-			"• Fire spreads through timber houses and trees.",
-			"• On fire? Jump in the village pond.",
-			"• Pyroclastic flow: hide behind solid walls or under a roof.",
+			"• Molten lava burns and slows you. Cooled black crust is safe.",
+			"• The heat meter only goes down in the lake. Burning? Get to the water!",
+			"• Pyroclastic flow: only the inside of a house or the bunker is safe.",
 		}, "\n"),
 		TextColor3 = Color3.fromRGB(245, 236, 226),
 		Font = Enum.Font.GothamMedium,
@@ -422,7 +421,8 @@ local GLASS = Color3.fromRGB(170, 212, 232)
 local DESTRUCTIBLE = { Destructible = true }
 
 local function buildHouse(index: number, base: CFrame, width: number, depth: number, stone: boolean, rng: Random): Model
-	local model = make("Model", { Name = `House{index}` })
+	-- Houses are proper buildings: being inside one can survive the pyroclastic flow (see Shelter).
+	local model = make("Model", { Name = `House{index}`, Attributes = { Shelter = true } })
 	local wallHeight = 9
 	local wallMaterial = if stone then Enum.Material.Brick else Enum.Material.WoodPlanks
 	local wallColor = if stone then BRICK else WOOD_WALLS[rng:NextInteger(1, #WOOD_WALLS)]
@@ -562,7 +562,7 @@ end
 
 local function buildShelter(base: CFrame): Model
 	-- A concrete bunker with its opening facing away from the volcano. Never breaks, never burns.
-	local model = make("Model", { Name = "Shelter" })
+	local model = make("Model", { Name = "Shelter", Attributes = { Shelter = true } })
 	local concrete = Color3.fromRGB(150, 148, 142)
 	local solid = { Support = true, Indestructible = true }
 	local w, d, h = 14, 12, 8
