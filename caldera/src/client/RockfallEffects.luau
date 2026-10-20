@@ -1,10 +1,12 @@
 --[[
 	RockfallEffects
-	What a boulder impact looks like: a burst of dust, a spray of rock chips and a camera thump
-	that scales with how hard it landed. The damage itself is dealt by the server (Tremors).
+	What a boulder impact looks like: a burst of dust, a spray of rock chips, and a mild camera
+	jolt for anyone near where it came down (stronger the closer and harder the hit), plus a jolt
+	when a rock hits you directly. The damage itself is dealt by the server (Tremors).
 ]]
 
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
@@ -13,6 +15,9 @@ local Net = require(Shared.Net)
 local CameraShake = require(script.Parent.CameraShake)
 
 local RockfallEffects = {}
+
+local BB = Config.Tremor.BoulderBlast
+local JOLT_DURATION = 0.45
 
 local rng = Random.new()
 local folder: Folder
@@ -72,10 +77,34 @@ local function chips(position: Vector3, power: number)
 	end
 end
 
+-- Where "near" is measured from: the character if there is one, else the camera.
+local function listenerPosition(): Vector3?
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if root then
+		return root.Position
+	end
+	local camera = workspace.CurrentCamera
+	return camera and camera.CFrame.Position
+end
+
 local function onImpact(position: Vector3, size: number, power: number)
 	dust(position, size, power)
 	chips(position, power)
-	CameraShake.Impulse(position, 0.55 * power, 70 + size * 8)
+
+	local here = listenerPosition()
+	if here then
+		local distance = (here - position).Magnitude
+		if distance < BB.ShakeRadius then
+			local closeness = 1 - distance / BB.ShakeRadius
+			CameraShake.Kick(BB.ShakeStrength * (0.35 + 0.65 * closeness) * (0.6 + 0.4 * power), JOLT_DURATION)
+		end
+	end
+end
+
+-- A rock hit this player directly.
+local function onHit(power: number)
+	CameraShake.Kick(BB.HitShakeStrength * (0.6 + 0.4 * power), JOLT_DURATION + 0.15)
 end
 
 function RockfallEffects.Start()
@@ -83,6 +112,7 @@ function RockfallEffects.Start()
 	folder.Name = "MountIgnisRockfall"
 	folder.Parent = workspace
 	Net.Event("RockImpact").OnClientEvent:Connect(onImpact)
+	Net.Event("RockHit").OnClientEvent:Connect(onHit)
 end
 
 return RockfallEffects

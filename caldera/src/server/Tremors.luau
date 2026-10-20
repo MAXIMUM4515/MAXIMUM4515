@@ -10,6 +10,7 @@
 	The blast is capped well below a one-shot: it is there to scare people off the flanks.
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -33,6 +34,8 @@ type Boulder = {
 	NextBlast: number,
 	-- When this boulder last hurt each character, so one rock can't land two blasts back to back.
 	LastHit: { [Model]: number },
+	-- When this boulder last jolted each player's camera with a direct hit.
+	LastJolt: { [Player]: number },
 }
 
 local intensity = 0
@@ -41,6 +44,7 @@ local boulders: { Boulder } = {}
 local folders
 local rng = Random.new()
 local rockImpactEvent = Net.Event("RockImpact")
+local rockHitEvent = Net.Event("RockHit")
 
 local terrainParams = RaycastParams.new()
 terrainParams.FilterType = Enum.RaycastFilterType.Include
@@ -182,6 +186,7 @@ local function spawnBoulder()
 		LastVelocity = part.AssemblyLinearVelocity,
 		NextBlast = 0,
 		LastHit = {},
+		LastJolt = {},
 	}
 	table.insert(boulders, boulder)
 
@@ -192,6 +197,13 @@ local function spawnBoulder()
 			-- Barely slows a heavy boulder, so the velocity check would miss it: burst on contact instead.
 			if speed >= BB.HitSpeed then
 				blast(boulder, impactPower(speed))
+				-- Jolt the victim's camera even if the blast is still cooling down from a bounce.
+				local player = Players:GetPlayerFromCharacter(model)
+				local now = os.clock()
+				if player and now - (boulder.LastJolt[player] or 0) > 0.5 then
+					boulder.LastJolt[player] = now
+					rockHitEvent:FireClient(player, impactPower(speed))
+				end
 			end
 		elseif speed > 25 and Structures.IsTracked(other) then
 			Structures.Damage(other, speed * 1.2, part.AssemblyLinearVelocity * 0.4)

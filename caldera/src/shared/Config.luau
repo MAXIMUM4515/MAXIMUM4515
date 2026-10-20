@@ -85,6 +85,10 @@ Config.Tremor = {
 		Knockback = 55,
 		Cooldown = 0.6, -- per boulder, so a bouncing rock thumps instead of buzzing
 		PlayerCooldown = 1.5, -- the same boulder can't hurt the same player again within this
+		-- A mild camera jolt for anyone near a rock that comes down hard, and for a direct hit.
+		ShakeRadius = 60,
+		ShakeStrength = 0.5, -- at point blank, fading to a third of this at the edge
+		HitShakeStrength = 0.65,
 	},
 }
 
@@ -250,6 +254,7 @@ Config.Colors = {
 	Intermission = Color3.fromRGB(235, 235, 235),
 	Good = Color3.fromRGB(120, 230, 140),
 	Bad = Color3.fromRGB(255, 90, 70),
+	Alarm = Color3.fromRGB(235, 30, 30),
 }
 
 -- Built-in engine sounds (rbxasset://) so the place works with no uploads. Swap freely.
@@ -257,6 +262,10 @@ Config.Sounds = {
 	-- Both ship with every Roblox client (checked against the client's file manifest).
 	Tick = "rbxasset://sounds/volume_slider.ogg",
 	Whoosh = "rbxasset://sounds/action_falling.ogg",
+	-- Plays once with the RUN! banner as the pyroclastic flow starts. Roblox only plays uploaded
+	-- audio, so import the file with Studio's Asset Manager and paste its id here as
+	-- "rbxassetid://<id>". Left empty, the banner shows without a sound.
+	RunAlert = "",
 }
 
 -- Shared by the server (which registers them) and the client (which puts local effects in them).

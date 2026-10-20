@@ -27,6 +27,9 @@ rojo build -o build/MountIgnis.rbxl   # rebuild the place file
 Testing tips:
 
 - The intermission is 30 seconds. Type `!erupt` in chat to skip it (works in Studio or for the place owner).
+- **RUN! alert sound:** Roblox only plays uploaded audio. Import the sound file with Studio's
+  Asset Manager, copy its asset id, and set `Config.Sounds.RunAlert = "rbxassetid://<id>"`.
+  Until then the RUN! banner appears silently and Studio's Output shows a one-line reminder.
 - **Test → Clients and Servers** with 2+ players shows the replication: lava, bombs and the flow
   are identical on every client.
 - `Config.Debug.Verbose = true` prints simulation timings.
@@ -40,7 +43,7 @@ Testing tips:
 | Intermission | 30 s | Players wait in the lobby; the village is rebuilt. A guide pops up on joining, and the last 5 seconds tick audibly | Read the guide, then press "Okay!" |
 | **Rumbling** | 18 s | Tremors build, steam vents hiss, boulders break off the summit, bounce down the flanks and burst where they land | Keep off the slopes; a burst hurts badly but won't one-shot you |
 | **Eruption** | 55 s | The crater explodes; lava floods through the breach toward the village; lava bombs fall on red warning rings; a fissure opens on a flank; ash darkens the sky | Dodge rings, stay out of molten lava, avoid burning houses. Burning? Only the lake puts it out |
-| **Pyroclastic Flow** | 22 s | The eruption column collapses into a searing avalanche of ash aimed at the survivors | Get inside a house or the concrete bunker, behind a wall facing the volcano. Out in the open it is fatal. The HUD shows SHELTERED / EXPOSED |
+| **Pyroclastic Flow** | 22 s | A red RUN! banner and alarm, then the eruption column collapses into a searing avalanche of ash aimed at the survivors | Get inside a house or the concrete bunker, behind a wall facing the volcano. Out in the open it is fatal. The HUD shows SHELTERED / EXPOSED |
 | **Aftermath** | 15 s | Vents die down, flows crust over into walkable basalt | Glowing rock still burns |
 | Results | 10 s | Survivors are listed | |
 
@@ -81,7 +84,7 @@ Testing tips:
 ### Rockfall (`server/Tremors.luau`, `client/RockfallEffects.luau`)
 - Boulders shake loose from the summit (some on the flank facing the players) and tumble down under real physics.
 - Every frame the server compares each boulder's velocity with the last frame's. A sudden change (a landing, a bounce, smashing into a wall) sets off a **blast with falloff**, and a direct hit on a player bursts too. Rolling smoothly does nothing, so a tumbling rock thumps down the slope.
-- Damage scales with boulder size and impact strength and is capped well below a one-shot (38 at most), with knockback, so it scares people off the flanks rather than killing outright. Clients show a dust burst, rock chips and a camera thump.
+- Damage scales with boulder size and impact strength and is capped well below a one-shot (38 at most), with knockback, so it scares people off the flanks rather than killing outright. Clients show a dust burst and rock chips, and anyone within 60 studs gets a mild camera jolt (stronger the closer and harder the hit, and on a direct hit).
 
 ### Fire (`server/Combustion.luau`)
 - Heat-based spread between flammable materials, faster upward (fire climbs). Parts char as they burn, then run out of fuel and give way, which feeds the collapse system.
@@ -180,6 +183,7 @@ built-in engine assets that ship with every client:
 - Particle textures: `rbxasset://textures/particles/fire_main.dds`, `smoke_main.dds`, `sparkles_main.dds`
 - Sounds: `rbxasset://sounds/volume_slider.ogg` (countdown tick), `rbxasset://sounds/action_falling.ogg` (pyroclastic roar), both checked against the current client's file manifest
 - Built-in `Fire`, `Smoke` and `Explosion` instances
+- One custom sound supplied by the team: the RUN! alert (`Config.Sounds.RunAlert`, uploaded to Roblox as audio)
 
 ## Team
 

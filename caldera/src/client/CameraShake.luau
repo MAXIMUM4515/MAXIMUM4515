@@ -23,6 +23,9 @@ local FREQUENCY = 14
 local trauma = 0
 local applied: CFrame? = nil
 
+type Kick = { Magnitude: number, Duration: number, Age: number }
+local kicks: { Kick } = {}
+
 -- Adds a burst of shake that fades with distance from `position`.
 function CameraShake.Impulse(position: Vector3, strength: number, radius: number)
 	local camera = workspace.CurrentCamera
@@ -32,6 +35,14 @@ function CameraShake.Impulse(position: Vector3, strength: number, radius: number
 	local distance = (camera.CFrame.Position - position).Magnitude
 	local falloff = 1 - math.clamp(distance / radius, 0, 1)
 	trauma = math.min(1.4, trauma + strength * falloff * falloff)
+end
+
+--[[
+	A short jolt (0..1) that fades out over `duration` seconds. Unlike trauma it is not squared,
+	so a mild kick is still clearly felt; used for nearby rock impacts and direct hits.
+]]
+function CameraShake.Kick(magnitude: number, duration: number)
+	table.insert(kicks, { Magnitude = magnitude, Duration = duration, Age = 0 })
 end
 
 function CameraShake.Start()
@@ -54,7 +65,21 @@ function CameraShake.Start()
 		local distance = (camera.CFrame.Position - Config.Volcano.Center).Magnitude
 		local proximity = math.clamp(1 - distance / 700, 0.3, 1)
 		local amount = math.min(1, tremor * 0.42 * proximity + trauma)
-		local shake = amount * amount
+
+		-- The strongest active kick, easing out over its lifetime (they don't stack into a spike).
+		local kick = 0
+		for i = #kicks, 1, -1 do
+			local k = kicks[i]
+			k.Age += dt
+			if k.Age >= k.Duration then
+				table.remove(kicks, i)
+			else
+				local fade = 1 - k.Age / k.Duration
+				kick = math.max(kick, k.Magnitude * fade * fade)
+			end
+		end
+
+		local shake = math.min(1, amount * amount + kick)
 		if shake < 0.0005 then
 			return
 		end

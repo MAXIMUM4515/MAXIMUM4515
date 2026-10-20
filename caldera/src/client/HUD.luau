@@ -8,6 +8,7 @@
 	its box, so a long line can never spill over the others). The heat meter sits on the left edge.
 ]]
 
+local ContentProvider = game:GetService("ContentProvider")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -355,8 +356,37 @@ local function fadeText(label: TextLabel, visible: boolean, duration: number)
 	}):Play()
 end
 
-local function announce(text: string, color: Color3?, duration: number?, style: string?)
+local alertSounds: { [string]: Sound } = {}
+local warnedMissing: { [string]: boolean } = {}
+
+-- The Sound for a Config.Sounds entry, or nil if no id has been filled in yet.
+local function alertSound(name: string): Sound?
+	local id = Config.Sounds[name]
+	if not id or id == "" then
+		if RunService:IsStudio() and not warnedMissing[name] then
+			warnedMissing[name] = true
+			warn(
+				`[Mount Ignis] Config.Sounds.{name} is empty: import the sound with the Asset Manager and paste its rbxassetid:// id there.`
+			)
+		end
+		return nil
+	end
+	local sound = alertSounds[name]
+	if not sound then
+		sound = create("Sound", { Name = name, SoundId = id, Parent = gui })
+		alertSounds[name] = sound
+	end
+	return sound
+end
+
+local function announce(text: string, color: Color3?, duration: number?, style: string?, soundName: string?)
 	local hold = duration or 3
+	-- The alert sound starts on the same frame the banner appears.
+	local sound = if soundName then alertSound(soundName) else nil
+	if sound then
+		sound.TimePosition = 0
+		sound:Play()
+	end
 	if style == "small" then
 		toastToken += 1
 		local token = toastToken
@@ -547,6 +577,13 @@ function HUD.Start()
 	build()
 
 	Net.Event("Announce").OnClientEvent:Connect(announce)
+	-- Load the RUN! sound up front so it plays the instant its banner appears.
+	task.spawn(function()
+		local sound = alertSound("RunAlert")
+		if sound then
+			ContentProvider:PreloadAsync({ sound })
+		end
+	end)
 	Net.Event("KillFeed").OnClientEvent:Connect(addFeed)
 	Net.Event("Results").OnClientEvent:Connect(showResults)
 

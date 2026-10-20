@@ -25,6 +25,7 @@ local EVENT_NAMES = {
 	"Pyroclastic", -- (flow data)
 	"CameraImpulse", -- (position, strength, radius)
 	"RockImpact", -- (position, boulderSize, power)
+	"RockHit", -- server -> client (power): a boulder hit you directly
 	"Knockback", -- server -> client (velocity, tumble)
 }
 

@@ -50,8 +50,9 @@ type Features = {
 }
 local features: Features
 
-local function announce(text: string, color: Color3, duration: number, style: string?)
-	announceEvent:FireAllClients(text, color, duration, style or "normal")
+-- `sound` names a Config.Sounds entry the clients play once as the banner appears.
+local function announce(text: string, color: Color3, duration: number, style: string?, sound: string?)
+	announceEvent:FireAllClients(text, color, duration, style or "normal", sound)
 end
 
 local function blast(position: Vector3, radius: number)
@@ -278,7 +279,7 @@ function handlers.Eruption(_duration: number)
 end
 
 function handlers.Pyroclastic(_duration: number)
-	announce("PYROCLASTIC FLOW!", C.Pyroclastic, 4, "big")
+	announce("RUN!", C.Alarm, 4, "big", "RunAlert")
 	blast(crater + Vector3.new(0, 10, 0), 50)
 	impulseEvent:FireAllClients(crater, 1.1, 900)
 	Tremors.SetIntensity(T.PyroclasticIntensity)
