@@ -27,9 +27,10 @@ rojo build -o build/MountIgnis.rbxl   # rebuild the place file
 Testing tips:
 
 - The intermission is 30 seconds. Type `!erupt` in chat to skip it (works in Studio or for the place owner).
-- **RUN! alert sound:** Roblox only plays uploaded audio. Import the sound file with Studio's
-  Asset Manager, copy its asset id, and set `Config.Sounds.RunAlert = "rbxassetid://<id>"`.
-  Until then the RUN! banner appears silently and Studio's Output shows a one-line reminder.
+- **RUN! alert sound:** `Config.Sounds.RunAlert` holds the team's uploaded audio
+  (`rbxassetid://83425899740581`). To swap it, import a file with Studio's Asset Manager and paste
+  its id there. Uploaded audio only plays in experiences it has been granted to, so if the game is
+  published by another account or a group, give that experience permission to use the sound.
 - **Test → Clients and Servers** with 2+ players shows the replication: lava, bombs and the flow
   are identical on every client.
 - `Config.Debug.Verbose = true` prints simulation timings.

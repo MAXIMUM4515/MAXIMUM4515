@@ -263,10 +263,10 @@ Config.Sounds = {
 	Tick = "rbxasset://sounds/volume_slider.ogg",
 	Whoosh = "rbxasset://sounds/action_falling.ogg",
 	RockImpact = "rbxasset://sounds/impact_explosion_03.mp3",
-	-- Plays once with the RUN! banner as the pyroclastic flow starts. Roblox only plays uploaded
-	-- audio, so import the file with Studio's Asset Manager and paste its id here as
-	-- "rbxassetid://<id>". Left empty, the banner shows without a sound.
-	RunAlert = "",
+	-- Plays once with the RUN! banner as the pyroclastic flow starts. Custom audio uploaded by the
+	-- team; to swap it, import a file with Studio's Asset Manager and paste its id here. Left
+	-- empty, the banner shows without a sound.
+	RunAlert = "rbxassetid://83425899740581",
 }
 
 -- Shared by the server (which registers them) and the client (which puts local effects in them).
