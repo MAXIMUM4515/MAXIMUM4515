@@ -1,8 +1,9 @@
 --[[
 	RockfallEffects
-	What a boulder impact looks like: a burst of dust, a spray of rock chips, and a mild camera
-	jolt for anyone near where it came down (stronger the closer and harder the hit), plus a jolt
-	when a rock hits you directly. The damage itself is dealt by the server (Tremors).
+	What a boulder impact looks and sounds like: a burst of dust, a spray of rock chips, a crunch
+	at the impact point, and a mild camera jolt for anyone near where it came down (stronger the
+	closer and harder the hit), plus a jolt and crunch when a rock hits you directly. Rocks are
+	silent while they roll; only impacts make a sound. The damage is dealt by the server (Tremors).
 ]]
 
 local Debris = game:GetService("Debris")
@@ -16,13 +17,26 @@ local CameraShake = require(script.Parent.CameraShake)
 
 local RockfallEffects = {}
 
-local BB = Config.Tremor.BoulderBlast
+local T = Config.Tremor
+local BB = T.BoulderBlast
 local JOLT_DURATION = 0.45
+
+-- Impact sounds: heard clearly up close, fading out by ROLLOFF_MAX studs. Capped so a slope full
+-- of bouncing rocks never turns into a wall of noise.
+local ROLLOFF_MIN = 12
+local ROLLOFF_MAX = 220
+local MAX_IMPACT_SOUNDS = 6
+local SOUND_LIFETIME = 5
+-- A direct hit right after an impact this close to the player already made its sound.
+local NEAR_IMPACT = 15
+
+local activeSounds = 0
+local lastNearImpact = 0
 
 local rng = Random.new()
 local folder: Folder
 
-local function dust(position: Vector3, size: number, power: number)
+local function dust(position: Vector3, size: number, power: number): BasePart
 	local anchor = Instance.new("Part")
 	anchor.Name = "RockDust"
 	anchor.Anchored = true
@@ -54,7 +68,33 @@ local function dust(position: Vector3, size: number, power: number)
 	emitter.Rate = 0
 	emitter.Parent = anchor
 	emitter:Emit(math.floor(10 + 10 * power))
-	Debris:AddItem(anchor, 2.5)
+	-- Kept around long enough to carry the impact sound too.
+	Debris:AddItem(anchor, SOUND_LIFETIME)
+	return anchor
+end
+
+-- A crunch from `parent`'s position: bigger rocks sound deeper, harder hits louder.
+local function playImpactSound(parent: Instance, size: number, power: number)
+	if activeSounds >= MAX_IMPACT_SOUNDS then
+		return
+	end
+	activeSounds += 1
+	task.delay(SOUND_LIFETIME, function()
+		activeSounds -= 1
+	end)
+
+	local sizeAlpha = math.clamp((size - T.BoulderSize.Min) / (T.BoulderSize.Max - T.BoulderSize.Min), 0, 1)
+	local sound = Instance.new("Sound")
+	sound.Name = "RockImpact"
+	sound.SoundId = Config.Sounds.RockImpact
+	sound.PlaybackSpeed = (0.95 - 0.25 * sizeAlpha) * rng:NextNumber(0.94, 1.06)
+	sound.Volume = 0.5 + 0.6 * power
+	sound.RollOffMode = Enum.RollOffMode.InverseTapered
+	sound.RollOffMinDistance = ROLLOFF_MIN
+	sound.RollOffMaxDistance = ROLLOFF_MAX
+	sound.Parent = parent
+	sound:Play()
+	Debris:AddItem(sound, SOUND_LIFETIME)
 end
 
 local function chips(position: Vector3, power: number)
@@ -89,12 +129,16 @@ local function listenerPosition(): Vector3?
 end
 
 local function onImpact(position: Vector3, size: number, power: number)
-	dust(position, size, power)
+	local anchor = dust(position, size, power)
 	chips(position, power)
+	playImpactSound(anchor, size, power)
 
 	local here = listenerPosition()
 	if here then
 		local distance = (here - position).Magnitude
+		if distance < NEAR_IMPACT then
+			lastNearImpact = os.clock()
+		end
 		if distance < BB.ShakeRadius then
 			local closeness = 1 - distance / BB.ShakeRadius
 			CameraShake.Kick(BB.ShakeStrength * (0.35 + 0.65 * closeness) * (0.6 + 0.4 * power), JOLT_DURATION)
@@ -105,6 +149,13 @@ end
 -- A rock hit this player directly.
 local function onHit(power: number)
 	CameraShake.Kick(BB.HitShakeStrength * (0.6 + 0.4 * power), JOLT_DURATION + 0.15)
+	-- The broadcast impact usually just played its crunch right here; only fill in if it didn't
+	-- (the boulder's blast can be cooling down from a bounce).
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root and os.clock() - lastNearImpact > 0.3 then
+		playImpactSound(root, T.BoulderSize.Max, power)
+	end
 end
 
 function RockfallEffects.Start()

@@ -259,9 +259,10 @@ Config.Colors = {
 
 -- Built-in engine sounds (rbxasset://) so the place works with no uploads. Swap freely.
 Config.Sounds = {
-	-- Both ship with every Roblox client (checked against the client's file manifest).
+	-- These ship with every Roblox client (checked against the client's file manifest).
 	Tick = "rbxasset://sounds/volume_slider.ogg",
 	Whoosh = "rbxasset://sounds/action_falling.ogg",
+	RockImpact = "rbxasset://sounds/impact_explosion_03.mp3",
 	-- Plays once with the RUN! banner as the pyroclastic flow starts. Roblox only plays uploaded
 	-- audio, so import the file with Studio's Asset Manager and paste its id here as
 	-- "rbxassetid://<id>". Left empty, the banner shows without a sound.

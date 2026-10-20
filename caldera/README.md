@@ -84,7 +84,7 @@ Testing tips:
 ### Rockfall (`server/Tremors.luau`, `client/RockfallEffects.luau`)
 - Boulders shake loose from the summit (some on the flank facing the players) and tumble down under real physics.
 - Every frame the server compares each boulder's velocity with the last frame's. A sudden change (a landing, a bounce, smashing into a wall) sets off a **blast with falloff**, and a direct hit on a player bursts too. Rolling smoothly does nothing, so a tumbling rock thumps down the slope.
-- Damage scales with boulder size and impact strength and is capped well below a one-shot (38 at most), with knockback, so it scares people off the flanks rather than killing outright. Clients show a dust burst and rock chips, and anyone within 60 studs gets a mild camera jolt (stronger the closer and harder the hit, and on a direct hit).
+- Damage scales with boulder size and impact strength and is capped well below a one-shot (38 at most), with knockback, so it scares people off the flanks rather than killing outright. Clients show a dust burst and rock chips with a crunch at the impact point (rocks are silent while they roll), and anyone within 60 studs gets a mild camera jolt (stronger the closer and harder the hit, and on a direct hit).
 
 ### Fire (`server/Combustion.luau`)
 - Heat-based spread between flammable materials, faster upward (fire climbs). Parts char as they burn, then run out of fuel and give way, which feeds the collapse system.
@@ -181,7 +181,7 @@ luau-lsp analyze --platform roblox --sourcemap sourcemap.json --definitions @rob
 built-in engine assets that ship with every client:
 
 - Particle textures: `rbxasset://textures/particles/fire_main.dds`, `smoke_main.dds`, `sparkles_main.dds`
-- Sounds: `rbxasset://sounds/volume_slider.ogg` (countdown tick), `rbxasset://sounds/action_falling.ogg` (pyroclastic roar), both checked against the current client's file manifest
+- Sounds: `rbxasset://sounds/volume_slider.ogg` (countdown tick), `rbxasset://sounds/action_falling.ogg` (pyroclastic roar), `rbxasset://sounds/impact_explosion_03.mp3` (boulder impacts), all checked against the current client's file manifest
 - Built-in `Fire`, `Smoke` and `Explosion` instances
 - One custom sound supplied by the team: the RUN! alert (`Config.Sounds.RunAlert`, uploaded to Roblox as audio)
 
