@@ -14,7 +14,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local Combustion = require(script.Parent.Combustion)
@@ -74,7 +74,7 @@ local function enoughPlayers(): boolean
 end
 
 local function intermission()
-	local length = if RunService:IsStudio() then Config.Debug.StudioIntermission else R.Intermission
+	local length = R.Intermission
 	while true do
 		if not enoughPlayers() then
 			setState("Waiting", "Waiting for players")

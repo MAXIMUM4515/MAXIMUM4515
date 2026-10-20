@@ -11,8 +11,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local IS_SERVER = RunService:IsServer()
-local REMOTES_NAME = "CalderaRemotes"
-local STATE_NAME = "CalderaState"
+local REMOTES_NAME = "MountIgnisRemotes"
+local STATE_NAME = "MountIgnisState"
 
 local EVENT_NAMES = {
 	"Announce", -- (text, color, duration, style)

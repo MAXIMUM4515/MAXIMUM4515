@@ -1,20 +1,20 @@
 {
-  "name": "Caldera",
+  "name": "MountIgnis",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "Caldera": {
+      "MountIgnis": {
         "$path": "src/shared"
       }
     },
     "ServerScriptService": {
-      "CalderaServer": {
+      "MountIgnisServer": {
         "$path": "src/server"
       }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "CalderaClient": {
+        "MountIgnisClient": {
           "$path": "src/client"
         }
       }

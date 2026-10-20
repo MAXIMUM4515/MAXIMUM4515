@@ -1,2 +1,2 @@
-std = "caldera"
+std = "mountignis"
 exclude = ["tests/*"]

@@ -20,7 +20,7 @@
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Heightmap = require(Shared.Heightmap)
 
@@ -248,12 +248,12 @@ function MapBuilder.SetupLighting()
 
 	-- Remove any stock Atmosphere so ours is the only one the client tweens.
 	for _, child in Lighting:GetChildren() do
-		if child:IsA("Atmosphere") and child.Name ~= "CalderaAtmosphere" then
+		if child:IsA("Atmosphere") and child.Name ~= "MountIgnisAtmosphere" then
 			child:Destroy()
 		end
 	end
 
-	local atmosphere = ensure("Atmosphere", "CalderaAtmosphere", Lighting)
+	local atmosphere = ensure("Atmosphere", "MountIgnisAtmosphere", Lighting)
 	atmosphere.Density = 0.3
 	atmosphere.Offset = 0.12
 	atmosphere.Color = Color3.fromRGB(205, 178, 160)
@@ -261,18 +261,18 @@ function MapBuilder.SetupLighting()
 	atmosphere.Glare = 0.25
 	atmosphere.Haze = 1.4
 
-	local bloom = ensure("BloomEffect", "CalderaBloom", Lighting)
+	local bloom = ensure("BloomEffect", "MountIgnisBloom", Lighting)
 	bloom.Intensity = 0.55
 	bloom.Size = 30
 	bloom.Threshold = 1.15
 
-	local grade = ensure("ColorCorrectionEffect", "CalderaGrade", Lighting)
+	local grade = ensure("ColorCorrectionEffect", "MountIgnisGrade", Lighting)
 	grade.Saturation = 0.05
 	grade.Contrast = 0.06
 	grade.Brightness = 0
 	grade.TintColor = Color3.new(1, 1, 1)
 
-	local rays = ensure("SunRaysEffect", "CalderaSunRays", Lighting)
+	local rays = ensure("SunRaysEffect", "MountIgnisSunRays", Lighting)
 	rays.Intensity = 0.05
 	rays.Spread = 0.6
 end
@@ -358,48 +358,6 @@ function MapBuilder.BuildLobby()
 		TopSurface = Enum.SurfaceType.Smooth,
 	}, lobby)
 	MapBuilder.LobbySpawn = spawnLocation.CFrame + Vector3.new(0, 4, 0)
-
-	-- A board that teaches the mechanics, facing the spawn.
-	local boardPosition = Vector3.new(center.X, floorY + 6, center.Z - size.Z / 2 + 2)
-	local board = block(
-		lobby,
-		"HowToSurvive",
-		CFrame.lookAt(boardPosition, boardPosition + Vector3.zAxis),
-		Vector3.new(26, 11, 0.6),
-		Enum.Material.WoodPlanks,
-		Color3.fromRGB(92, 64, 46)
-	)
-	local gui = make("SurfaceGui", {
-		Face = Enum.NormalId.Front,
-		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-		PixelsPerStud = 40,
-		LightInfluence = 0.3,
-	}, board)
-	make("TextLabel", {
-		Size = UDim2.fromScale(1, 0.22),
-		BackgroundTransparency = 1,
-		Text = `CALDERA · {string.upper(V.Name)}`,
-		TextColor3 = Color3.fromRGB(255, 186, 96),
-		Font = Enum.Font.GothamBlack,
-		TextScaled = true,
-	}, gui)
-	make("TextLabel", {
-		Position = UDim2.fromScale(0.05, 0.26),
-		Size = UDim2.fromScale(0.9, 0.7),
-		BackgroundTransparency = 1,
-		Text = table.concat({
-			"• Lava bombs are marked by red rings on the ground. Move!",
-			"• Boulders crash down the slopes and burst where they land.",
-			"• Molten lava burns and slows you. Cooled black crust is safe.",
-			"• The heat meter only goes down in the lake. Burning? Get to the water!",
-			"• Pyroclastic flow: only the inside of a house or the bunker is safe.",
-		}, "\n"),
-		TextColor3 = Color3.fromRGB(245, 236, 226),
-		Font = Enum.Font.GothamMedium,
-		TextScaled = true,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-	}, gui)
 end
 
 --------------------------------------------------------------------------------------------
@@ -560,9 +518,9 @@ local function buildHouse(index: number, base: CFrame, width: number, depth: num
 	return model
 end
 
-local function buildShelter(base: CFrame): Model
+local function buildBunker(index: number, base: CFrame): Model
 	-- A concrete bunker with its opening facing away from the volcano. Never breaks, never burns.
-	local model = make("Model", { Name = "Shelter", Attributes = { Shelter = true } })
+	local model = make("Model", { Name = `Bunker{index}`, Attributes = { Shelter = true } })
 	local concrete = Color3.fromRGB(150, 148, 142)
 	local solid = { Support = true, Indestructible = true }
 	local w, d, h = 14, 12, 8
@@ -744,15 +702,16 @@ function MapBuilder.BuildDestructibles()
 		end
 	end
 
-	-- Concrete shelter on the far side of the village.
-	local shelterX, shelterZ = square.X + M.VillageRadius + 20, square.Z - 26
-	local shelterY = groundAt(shelterX, shelterZ)
-	local shelterBase =
-		CFrame.lookAt(Vector3.new(shelterX, shelterY, shelterZ), Vector3.new(shelterX + 1, shelterY, shelterZ))
-	-- lookAt(+X) puts the back wall (local -Z) toward +X; flip so the back wall faces the volcano.
-	shelterBase = shelterBase * CFrame.Angles(0, math.pi, 0)
-	buildShelter(shelterBase).Parent = folders.Structures
-	table.insert(footprints, { Position = shelterBase.Position, Radius = 12 })
+	-- Concrete bunkers around the village, each with its solid back wall toward the volcano.
+	for i, offset in M.Bunkers do
+		local x, z = square.X + offset.X, square.Z + offset.Z
+		local position = Vector3.new(x, groundAt(x, z), z)
+		local away = Vector3.new(x - V.Center.X, 0, z - V.Center.Z).Unit
+		-- lookAt(away) points local -Z (the back wall) away from the volcano; flip it to face the volcano.
+		local base = CFrame.lookAt(position, position + away) * CFrame.Angles(0, math.pi, 0)
+		buildBunker(i, base).Parent = folders.Structures
+		table.insert(footprints, { Position = position, Radius = 12 })
+	end
 
 	-- Stone well in the square.
 	local well = make("Model", { Name = "Well" })
@@ -768,6 +727,55 @@ function MapBuilder.BuildDestructibles()
 	}, well)
 	well.Parent = folders.Structures
 	table.insert(footprints, { Position = squarePosition, Radius = 6 })
+
+	-- Is there room for a building of this size here? Keeps clear of everything already placed,
+	-- the pond and the volcano's slope.
+	local function isClear(position: Vector3, radius: number): boolean
+		if Heightmap.Volcano(position.X, position.Z) > 2 then
+			return false
+		end
+		local pond = M.Pond
+		local px, pz = position.X - pond.Center.X, position.Z - pond.Center.Z
+		if px * px + pz * pz < (pond.Radius + radius + 6) ^ 2 then
+			return false
+		end
+		for _, footprint in footprints do
+			local fx, fz = position.X - footprint.Position.X, position.Z - footprint.Position.Z
+			if fx * fx + fz * fz < (footprint.Radius + radius + 4) ^ 2 then
+				return false
+			end
+		end
+		return true
+	end
+
+	-- Outer ring: more houses facing the square, every third one a larger brick house. A spot that
+	-- is taken is nudged sideways a few times before giving up on it.
+	local outerCount = 0
+	for i = 1, M.OuterHouseCount do
+		local brick = i % 3 == 0
+		local width = if brick then 20 else ({ 14, 16, 18 })[rng:NextInteger(1, 3)]
+		local depth = if brick then 16 else ({ 12, 14 })[rng:NextInteger(1, 2)]
+		local radius = math.max(width, depth) * 0.75
+		local baseAngle = (i + 0.5) / M.OuterHouseCount * math.pi * 2
+		for attempt = 0, 4 do
+			local side = if attempt % 2 == 0 then 1 else -1
+			local angle = baseAngle + side * math.ceil(attempt / 2) * 0.12
+			local distance = M.OuterRadius + rng:NextNumber(-4, 4)
+			local x = square.X + math.cos(angle) * distance
+			local z = square.Z + math.sin(angle) * distance
+			local position = Vector3.new(x, groundAt(x, z), z)
+			if isClear(position, radius) then
+				outerCount += 1
+				local base = CFrame.lookAt(position, Vector3.new(square.X, position.Y, square.Z))
+				buildHouse(M.HouseCount + outerCount, base, width, depth, brick, rng).Parent = folders.Structures
+				table.insert(footprints, { Position = position, Radius = radius })
+				local spot = base
+					* CFrame.new(rng:NextNumber(-width / 2, width / 2), 0, depth / 2 + rng:NextNumber(2.5, 5))
+				buildProp(Vector3.new(spot.X, groundAt(spot.X, spot.Z), spot.Z), rng, folders.Props)
+				break
+			end
+		end
+	end
 
 	-- Spawn points around the well.
 	table.clear(MapBuilder.VillageSpawns)
@@ -820,7 +828,7 @@ end
 --------------------------------------------------------------------------------------------
 
 function MapBuilder.CreateFolders()
-	local root = folder("Caldera", workspace)
+	local root = folder("MountIgnis", workspace)
 	MapBuilder.Folders = {
 		Root = root,
 		Structures = folder("Structures", root),

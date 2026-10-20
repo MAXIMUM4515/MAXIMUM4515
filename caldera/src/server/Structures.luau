@@ -12,7 +12,7 @@
 local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Signal = require(Shared.Signal)
 
@@ -42,8 +42,8 @@ local debrisQueue: { BasePart } = {}
 local folders: { Structures: Folder, Nature: Folder, Debris: Folder }
 local rng = Random.new()
 
-local DEBRIS_GROUP = "CalderaDebris"
-local PLAYER_GROUP = "CalderaPlayers"
+local DEBRIS_GROUP = Config.CollisionGroups.Debris
+local PLAYER_GROUP = Config.CollisionGroups.Players
 local WEAR_COLOR = Color3.fromRGB(45, 38, 34)
 
 Structures.DebrisGroup = DEBRIS_GROUP
@@ -167,12 +167,6 @@ local function shatter(part: BasePart)
 		shard.Parent = folders.Debris
 		trackDebris(shard)
 	end
-	local sound = Instance.new("Sound")
-	sound.SoundId = Config.Sounds.Glass
-	sound.Volume = 0.6
-	sound.RollOffMaxDistance = 120
-	sound.Parent = part
-	sound:Play()
 	part.Transparency = 1
 	part.CanCollide = false
 	part.CanQuery = false

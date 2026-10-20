@@ -10,7 +10,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Structures = require(script.Parent.Structures)
 

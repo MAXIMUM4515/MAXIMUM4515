@@ -1,4 +1,4 @@
-# Caldera: the eruption of Mount Ignis
+# Mount Ignis
 
 A volcanic-eruption disaster for Roblox, made for the HiddenDevs **Design a Disaster** event.
 
@@ -6,7 +6,7 @@ A stratovolcano towers over the village of Emberfall. Each round it wakes up, er
 collapses into a pyroclastic flow. Lava really flows: it is a simulated fluid that follows
 the terrain, pools in craters, pours around houses, sets timber alight and finally freezes
 into black rock you can walk on. Lava bombs rain on marked targets, buildings burn and
-crumble when their supports fail, and the climax can only be survived behind solid cover.
+crumble when their supports fail, and the climax can only be survived inside a proper building.
 
 Everything is generated from code: terrain, village, lobby, UI and effects. No free models
 are used.
@@ -15,19 +15,18 @@ are used.
 
 ## Opening it
 
-**Option A: ready-made place.** Open `build/Caldera.rbxl` in Roblox Studio and press **Play**.
+**Option A: ready-made place.** Open `build/MountIgnis.rbxl` in Roblox Studio and press **Play**.
 
 **Option B: Rojo (for editing).**
 
 ```sh
 rojo serve           # then connect with the Rojo Studio plugin
-rojo build -o build/Caldera.rbxl   # rebuild the place file
+rojo build -o build/MountIgnis.rbxl   # rebuild the place file
 ```
 
 Testing tips:
 
-- In Studio the intermission is 8 seconds (`Config.Debug.StudioIntermission`).
-- Type `!erupt` in chat to skip the intermission (works in Studio or for the place owner).
+- The intermission is 30 seconds. Type `!erupt` in chat to skip it (works in Studio or for the place owner).
 - **Test → Clients and Servers** with 2+ players shows the replication: lava, bombs and the flow
   are identical on every client.
 - `Config.Debug.Verbose = true` prints simulation timings.
@@ -38,7 +37,7 @@ Testing tips:
 
 | Phase | Time | What happens | How to survive |
 |---|---|---|---|
-| Intermission | 25 s | Players wait in the lobby; the village is rebuilt | Read the board |
+| Intermission | 30 s | Players wait in the lobby; the village is rebuilt. A guide pops up on joining, and the last 5 seconds tick audibly | Read the guide, then press "Okay!" |
 | **Rumbling** | 18 s | Tremors build, steam vents hiss, boulders break off the summit, bounce down the flanks and burst where they land | Keep off the slopes; a burst hurts badly but won't one-shot you |
 | **Eruption** | 55 s | The crater explodes; lava floods through the breach toward the village; lava bombs fall on red warning rings; a fissure opens on a flank; ash darkens the sky | Dodge rings, stay out of molten lava, avoid burning houses. Burning? Only the lake puts it out |
 | **Pyroclastic Flow** | 22 s | The eruption column collapses into a searing avalanche of ash aimed at the survivors | Get inside a house or the concrete bunker, behind a wall facing the volcano. Out in the open it is fatal. The HUD shows SHELTERED / EXPOSED |
@@ -89,7 +88,7 @@ Testing tips:
 
 ### Pyroclastic flow (`server/Pyroclastic.luau`, `shared/Shelter.luau`, `client/PyroclasticVisual.luau`)
 - An expanding arc aimed at the survivors. Everything in the sector is **pre-sorted by distance**, so each tick walks a pointer instead of scanning the map.
-- Out in the open the flow is fatal. **Only proper buildings shelter you**: models tagged `Shelter` (the houses and the concrete bunker). You need that building's roof over you and its solid walls blocking at least 2 of 3 sightlines toward the volcano. Terrain, rocks, trees, props, the well and debris never count, and glass doesn't stop the flow. An open doorway facing the volcano, or a wall that has burned away, leaves you exposed.
+- Out in the open the flow is fatal. **Only proper buildings shelter you**: models tagged `Shelter` (the 15 or so houses in two rings around the square, and three concrete bunkers). You need that building's roof over you and its solid walls blocking at least 2 of 3 sightlines toward the volcano. Terrain, rocks, trees, props, the well and debris never count, and glass doesn't stop the flow. An open doorway facing the volcano, or a wall that has burned away, leaves you exposed.
 - The **shelter test is shared** between server damage and the client HUD, so the "SHELTERED / EXPOSED" indicator never disagrees with what happens to you.
 - The cloud hugs the terrain using the shared heightmap (no raycasts) and smothers your screen when it engulfs you.
 
@@ -98,6 +97,7 @@ Testing tips:
 - Between rounds only the chunks that craters touched are rewritten. The village is rebuilt from a fixed seed.
 
 ### Also
+- A how-to-play pop-up when a player joins (phase names and lengths are read from Config, so it never goes stale), closed with "Okay!", and an audible countdown tick for the last 5 seconds of the intermission.
 - Players are tracked from the moment their character reaches the Workspace (`CharacterAdded` fires before that), with a safety net in the update loop. A character that slipped through would be immune to every hazard.
 - A red flash at the screen edges on every hit, scaled by damage. It snaps in and fades straight back out, so a burst of hits reads as a burst of flashes and nothing ever lingers on screen.
 - Camera shake that is undone before the default camera updates, so it never drifts your view.
@@ -110,8 +110,8 @@ Testing tips:
 ```
 caldera/
 ├─ default.project.json        Rojo project
-├─ build/Caldera.rbxl          ready-to-open place
-├─ src/shared/                 ReplicatedStorage.Caldera
+├─ build/MountIgnis.rbxl       ready-to-open place
+├─ src/shared/                 ReplicatedStorage.MountIgnis
 │  ├─ Config.luau              every tunable number
 │  ├─ Net.luau                 remotes + replicated state attributes
 │  ├─ LavaGrid.luau            grid geometry + binary codec
@@ -119,7 +119,7 @@ caldera/
 │  ├─ Ballistics.luau          projectile maths (pure)
 │  ├─ Shelter.luau             shared cover test
 │  └─ Signal.luau, Janitor.luau
-├─ src/server/                 ServerScriptService.CalderaServer
+├─ src/server/                 ServerScriptService.MountIgnisServer
 │  ├─ init.server.luau         bootstrap
 │  ├─ RoundService.luau        game loop
 │  ├─ Volcano.luau             phase director
@@ -128,11 +128,12 @@ caldera/
 │  ├─ LavaBombs.luau, Pyroclastic.luau, Tremors.luau
 │  ├─ Structures.luau, Combustion.luau, Hazards.luau
 │  └─ MapBuilder.luau
-├─ src/client/                 StarterPlayerScripts.CalderaClient
+├─ src/client/                 StarterPlayerScripts.MountIgnisClient
 │  ├─ init.client.luau
 │  ├─ LavaRenderer.luau, BombRenderer.luau, PyroclasticVisual.luau, RockfallEffects.luau
 │  ├─ AshSky.luau, CameraShake.luau
-│  └─ HUD.luau
+│  ├─ HUD.luau, GuidePopup.luau
+│  └─ UiKit.luau               shared UI helpers
 ├─ tests/                      offline tests for the pure modules
 └─ tools/luaurun/              tiny Luau runner used by the tests
 ```
@@ -159,7 +160,15 @@ and a full eruption on the real heightmap. The eruption test asserts that the la
 the breach, reaches the village within the round, never spills over the far rim, and crusts
 over in the aftermath.
 
-Linting and formatting: `selene src` (uses `caldera.yml`) and `stylua src tests`.
+Linting and formatting: `selene src` (uses `mountignis.yml`) and `stylua src tests`.
+
+Type checking against the real Roblox API with [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp)
+(its repo ships the Roblox definitions as `scripts/globalTypes.d.luau`):
+
+```sh
+rojo sourcemap default.project.json -o sourcemap.json
+luau-lsp analyze --platform roblox --sourcemap sourcemap.json --definitions @roblox=globalTypes.d.luau src
+```
 
 ---
 
@@ -169,7 +178,7 @@ Linting and formatting: `selene src` (uses `caldera.yml`) and `stylua src tests`
 built-in engine assets that ship with every client:
 
 - Particle textures: `rbxasset://textures/particles/fire_main.dds`, `smoke_main.dds`, `sparkles_main.dds`
-- Sounds: `rbxasset://sounds/Rocket whoosh 01.wav`, `rbxasset://sounds/glassbreak.wav`
+- Sounds: `rbxasset://sounds/volume_slider.ogg` (countdown tick), `rbxasset://sounds/action_falling.ogg` (pyroclastic roar), both checked against the current client's file manifest
 - Built-in `Fire`, `Smoke` and `Explosion` instances
 
 ## Team

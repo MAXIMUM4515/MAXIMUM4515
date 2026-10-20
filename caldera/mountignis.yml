@@ -1,6 +1,6 @@
 ---
 base: luau
-name: caldera
+name: mountignis
 globals:
   game: { any: true }
   workspace: { any: true }

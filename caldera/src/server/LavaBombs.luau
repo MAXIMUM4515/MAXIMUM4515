@@ -11,7 +11,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Ballistics = require(Shared.Ballistics)
 local Net = require(Shared.Net)
@@ -22,6 +22,7 @@ local LavaFlow = require(script.Parent.LavaFlow)
 local MapBuilder = require(script.Parent.MapBuilder)
 
 local B = Config.Bombs
+local L = Config.Lava
 
 local LavaBombs = {}
 
@@ -91,7 +92,7 @@ local function impact(position: Vector3, hit: Instance?, size: number)
 	})
 	Structures.DamageRadius(position, radius * 0.8, B.StructureDamage, 45)
 	Combustion.IgniteRadius(position, radius * 0.65, B.IgniteChance)
-	LavaFlow.Splash(position, B.BombSplat * scale, 4)
+	LavaFlow.Splash(position, L.BombSplat * scale, 4)
 
 	-- Throw loose props and debris around.
 	pushParams.FilterDescendantsInstances = { folders.Props, folders.Debris }

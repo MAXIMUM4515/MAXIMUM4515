@@ -1,5 +1,5 @@
 --[[
-	Caldera - client bootstrap.
+	Mount Ignis - client bootstrap.
 	Starts the visual controllers and applies server-requested knockback to the local
 	character (which this client simulates, so it is the only place velocity can be set).
 ]]
@@ -7,7 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Net = require(Shared.Net)
 
 local CameraShake = require(script.CameraShake)
@@ -16,6 +16,7 @@ local BombRenderer = require(script.BombRenderer)
 local AshSky = require(script.AshSky)
 local PyroclasticVisual = require(script.PyroclasticVisual)
 local RockfallEffects = require(script.RockfallEffects)
+local GuidePopup = require(script.GuidePopup)
 local HUD = require(script.HUD)
 
 local player = Players.LocalPlayer
@@ -25,12 +26,13 @@ local function start(name: string, controller: { Start: () -> () })
 	task.spawn(function()
 		local ok, err = pcall(controller.Start)
 		if not ok then
-			warn(`[Caldera] {name} failed to start:`, err)
+			warn(`[Mount Ignis] {name} failed to start:`, err)
 		end
 	end)
 end
 
 start("HUD", HUD)
+start("GuidePopup", GuidePopup)
 start("CameraShake", CameraShake)
 start("LavaRenderer", LavaRenderer)
 start("BombRenderer", BombRenderer)

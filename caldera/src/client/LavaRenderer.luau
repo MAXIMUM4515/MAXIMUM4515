@@ -15,7 +15,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local LavaGrid = require(Shared.LavaGrid)
 local Net = require(Shared.Net)
@@ -273,7 +273,7 @@ end
 
 function LavaRenderer.Start()
 	folder = Instance.new("Folder")
-	folder.Name = "CalderaLava"
+	folder.Name = "MountIgnisLava"
 	folder.Parent = workspace
 
 	Net.Event("LavaDelta").OnClientEvent:Connect(function(buf: buffer)

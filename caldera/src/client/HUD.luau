@@ -13,39 +13,23 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local Shelter = require(Shared.Shelter)
+local UiKit = require(script.Parent.UiKit)
 
 local HUD = {}
 
 local player = Players.LocalPlayer
 local C = Config.Colors
 
-local PANEL = Color3.fromRGB(22, 18, 18)
-local TEXT = Color3.fromRGB(245, 238, 230)
-local MUTED = Color3.fromRGB(190, 178, 168)
+local PANEL = UiKit.Panel
+local TEXT = UiKit.Text
+local MUTED = UiKit.Muted
 
-type Props = { [string]: any }
-
-local function create(className: string, props: Props, children: { Instance }?): any
-	local instance = Instance.new(className)
-	for key, value in props do
-		if key ~= "Parent" then
-			(instance :: any)[key] = value
-		end
-	end
-	for _, child in children or {} do
-		child.Parent = instance
-	end
-	instance.Parent = props.Parent
-	return instance
-end
-
-local function corner(radius: number): UICorner
-	return create("UICorner", { CornerRadius = UDim.new(0, radius) })
-end
+local create = UiKit.create
+local corner = UiKit.corner
 
 local function formatTime(seconds: number): string
 	seconds = math.max(0, math.ceil(seconds))
@@ -89,7 +73,7 @@ local BANNER_TOP = 126
 
 local function build()
 	gui = create("ScreenGui", {
-		Name = "CalderaHUD",
+		Name = "MountIgnisHUD",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -114,7 +98,7 @@ local function build()
 		Font = Enum.Font.GothamBlack,
 		TextSize = 26,
 		TextColor3 = C.Intermission,
-		Text = "CALDERA",
+		Text = "MOUNT IGNIS",
 		Parent = panel,
 	})
 	infoLabel = create("TextLabel", {
@@ -294,7 +278,7 @@ local function build()
 	-- Fully transparent until a hit lands (see flashDamage). Each edge's own transparency is driven
 	-- directly rather than through a CanvasGroup, so visibility never depends on group rendering.
 	flashGui = create("ScreenGui", {
-		Name = "CalderaDamageFlash",
+		Name = "MountIgnisDamageFlash",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		DisplayOrder = -1,
@@ -534,7 +518,7 @@ local function updateStatus()
 		phaseLabel.Text = "REBUILDING"
 		infoLabel.Text = "Emberfall is being rebuilt..."
 	else
-		phaseLabel.Text = "CALDERA"
+		phaseLabel.Text = "MOUNT IGNIS"
 		infoLabel.Text = "Waiting for players"
 	end
 end
@@ -548,8 +532,8 @@ local function updateShelter()
 		return
 	end
 	-- Same rule as the server: only buildings can shelter you.
-	local caldera = workspace:FindFirstChild("Caldera")
-	local structures = caldera and caldera:FindFirstChild("Structures")
+	local mapRoot = workspace:FindFirstChild("MountIgnis")
+	local structures = mapRoot and mapRoot:FindFirstChild("Structures")
 	shelterParams.FilterDescendantsInstances = if structures then { structures } else {}
 	local volcano = Config.Volcano.Center + Vector3.new(0, Config.Volcano.Height, 0)
 	local sheltered = Shelter.Evaluate(root.Position, volcano, shelterParams)
@@ -571,9 +555,35 @@ function HUD.Start()
 		task.spawn(watchHealth, player.Character)
 	end
 
+	-- Countdown: a tick for each of the last seconds of the intermission (rising in pitch), then a
+	-- higher one as the round starts, so players busy with something else know it is beginning.
+	local tickSound = create("Sound", { Name = "CountdownTick", SoundId = Config.Sounds.Tick, Parent = gui })
+	local countdownFrom = Config.Round.CountdownFrom
+	local lastTick: number? = nil
+	local function playTick(speed: number, volume: number)
+		tickSound.PlaybackSpeed = speed
+		tickSound.Volume = volume
+		tickSound.TimePosition = 0
+		tickSound:Play()
+	end
+
 	local shown = 0
 	local statusTimer, shelterTimer = 0, 0
 	RunService.RenderStepped:Connect(function(dt)
+		local roundState = Net.GetState("RoundState")
+		if roundState == "Intermission" then
+			local second = math.ceil((Net.GetState("PhaseEndsAt") or 0) - workspace:GetServerTimeNow())
+			if second >= 1 and second <= countdownFrom and second ~= lastTick then
+				lastTick = second
+				playTick(1 + (countdownFrom - second) * 0.08, 1.2)
+			end
+		elseif lastTick then
+			if roundState == "Disaster" then
+				playTick(1.6, 1.6)
+			end
+			lastTick = nil
+		end
+
 		statusTimer += dt
 		if statusTimer > 0.2 then
 			statusTimer = 0

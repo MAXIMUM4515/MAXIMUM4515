@@ -10,7 +10,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 
@@ -35,7 +35,7 @@ function CameraShake.Impulse(position: Vector3, strength: number, radius: number
 end
 
 function CameraShake.Start()
-	RunService:BindToRenderStep("CalderaShakeUndo", Enum.RenderPriority.Camera.Value - 1, function()
+	RunService:BindToRenderStep("MountIgnisShakeUndo", Enum.RenderPriority.Camera.Value - 1, function()
 		local camera = workspace.CurrentCamera
 		if applied and camera then
 			camera.CFrame = camera.CFrame * applied:Inverse()
@@ -43,7 +43,7 @@ function CameraShake.Start()
 		applied = nil
 	end)
 
-	RunService:BindToRenderStep("CalderaShake", Enum.RenderPriority.Camera.Value + 1, function(dt)
+	RunService:BindToRenderStep("MountIgnisShake", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		local camera = workspace.CurrentCamera
 		if not camera then
 			return

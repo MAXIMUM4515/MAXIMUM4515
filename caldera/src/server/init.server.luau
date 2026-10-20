@@ -1,12 +1,12 @@
 --[[
-	Caldera - server bootstrap.
+	Mount Ignis - server bootstrap.
 	Builds the map, starts every system in dependency order, wires the cross-system events,
 	then hands control to the round loop.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 require(Shared.Net) -- creates the remotes and state folder before any client asks for them
 
@@ -60,7 +60,7 @@ LavaFlow.Scorching:Connect(function(cframe, size)
 end)
 
 if Config.Debug.Verbose then
-	print(`[Caldera] ready in {math.floor((os.clock() - started) * 1000)} ms`)
+	print(`[Mount Ignis] ready in {math.floor((os.clock() - started) * 1000)} ms`)
 end
 
 RoundService.Run()

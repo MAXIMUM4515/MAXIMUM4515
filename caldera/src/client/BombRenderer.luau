@@ -9,8 +9,9 @@ local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Ballistics = require(Shared.Ballistics)
+local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local CameraShake = require(script.Parent.CameraShake)
 
@@ -110,7 +111,7 @@ local function burst(position: Vector3, normal: Vector3, size: number)
 		chunk.CanTouch = false
 		chunk.CastShadow = false
 		-- Same group as server debris, so spatter never shoves the player.
-		chunk.CollisionGroup = "CalderaDebris"
+		chunk.CollisionGroup = Config.CollisionGroups.Debris
 		chunk.CFrame = CFrame.new(position + normal * 1.5)
 		local spray = (normal * rng:NextNumber(0.8, 1.4) + Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1))).Unit
 		chunk.AssemblyLinearVelocity = spray * rng:NextNumber(25, 55)
@@ -156,7 +157,7 @@ end
 
 function BombRenderer.Start()
 	folder = Instance.new("Folder")
-	folder.Name = "CalderaBombs"
+	folder.Name = "MountIgnisBombs"
 	folder.Parent = workspace
 	Net.Event("BombLaunched").OnClientEvent:Connect(onLaunched)
 	RunService.RenderStepped:Connect(update)

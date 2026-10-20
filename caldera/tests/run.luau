@@ -1,5 +1,5 @@
 --[[
-	Offline tests for the pure-Luau parts of Caldera.
+	Offline tests for the pure-Luau parts of Mount Ignis.
 	Run from the `caldera` folder with any Luau runner that provides `__loadfile`
 	(see tests/README.md).
 ]]

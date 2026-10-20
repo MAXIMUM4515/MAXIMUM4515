@@ -11,7 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Heightmap = require(Shared.Heightmap)
 local Net = require(Shared.Net)
@@ -104,8 +104,9 @@ local function onFlow(data)
 
 	local whoosh = Instance.new("Sound")
 	whoosh.SoundId = Config.Sounds.Whoosh
-	whoosh.Volume = 1
-	whoosh.PlaybackSpeed = 0.35
+	-- The engine's falling-wind sound, slowed down into a deep roar.
+	whoosh.Volume = 1.5
+	whoosh.PlaybackSpeed = 0.5
 	SoundService:PlayLocalSound(whoosh)
 	Debris:AddItem(whoosh, 10)
 
@@ -168,7 +169,7 @@ end
 
 function PyroclasticVisual.Start()
 	folder = Instance.new("Folder")
-	folder.Name = "CalderaPyroclastic"
+	folder.Name = "MountIgnisPyroclastic"
 	folder.Parent = workspace
 	Net.Event("Pyroclastic").OnClientEvent:Connect(onFlow)
 	-- Make sure a flow never outlives its round.

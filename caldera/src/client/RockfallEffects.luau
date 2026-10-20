@@ -7,7 +7,8 @@
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
+local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local CameraShake = require(script.Parent.CameraShake)
 
@@ -61,7 +62,7 @@ local function chips(position: Vector3, power: number)
 		chip.CanQuery = false
 		chip.CanTouch = false
 		chip.CastShadow = false
-		chip.CollisionGroup = "CalderaDebris"
+		chip.CollisionGroup = Config.CollisionGroups.Debris
 		chip.CFrame = CFrame.new(position + Vector3.new(0, 1.5, 0))
 			* CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), 0)
 		local spray = Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(0.6, 1.4), rng:NextNumber(-1, 1)).Unit
@@ -79,7 +80,7 @@ end
 
 function RockfallEffects.Start()
 	folder = Instance.new("Folder")
-	folder.Name = "CalderaRockfall"
+	folder.Name = "MountIgnisRockfall"
 	folder.Parent = workspace
 	Net.Event("RockImpact").OnClientEvent:Connect(onImpact)
 end

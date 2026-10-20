@@ -9,7 +9,7 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Shared = ReplicatedStorage:WaitForChild("Caldera")
+local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Net = require(Shared.Net)
 
 local AshSky = {}
@@ -32,8 +32,8 @@ function AshSky.SetSmother(value: number)
 end
 
 function AshSky.Start()
-	local atmosphere = Lighting:WaitForChild("CalderaAtmosphere", 20) :: Atmosphere?
-	local grade = Lighting:WaitForChild("CalderaGrade", 20) :: ColorCorrectionEffect?
+	local atmosphere = Lighting:WaitForChild("MountIgnisAtmosphere", 20) :: Atmosphere?
+	local grade = Lighting:WaitForChild("MountIgnisGrade", 20) :: ColorCorrectionEffect?
 	if not atmosphere or not grade then
 		warn("[AshSky] lighting effects missing")
 		return
@@ -52,7 +52,7 @@ function AshSky.Start()
 	}
 
 	local blur = Instance.new("BlurEffect")
-	blur.Name = "CalderaSmother"
+	blur.Name = "MountIgnisSmother"
 	blur.Size = 0
 	blur.Parent = Lighting
 

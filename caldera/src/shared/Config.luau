@@ -1,20 +1,20 @@
 --[[
 	Config
-	Every tunable number for the Caldera disaster lives here so the eruption can be
+	Every tunable number for the Mount Ignis disaster lives here so the eruption can be
 	rebalanced without touching system code. Times are in seconds, distances in studs.
 ]]
 
 local Config = {}
 
 Config.Debug = {
-	-- Shorter intermission while testing in Studio.
-	StudioIntermission = 8,
 	-- Prints timing information for the lava simulation and other systems.
 	Verbose = false,
 }
 
 Config.Round = {
-	Intermission = 25,
+	Intermission = 30,
+	-- Seconds left in the intermission at which the countdown starts ticking.
+	CountdownFrom = 5,
 	Results = 10,
 	MinPlayers = 1,
 	-- Phases run in order. `Name` is shown on the HUD, `Id` is what systems switch on.
@@ -36,6 +36,11 @@ Config.Map = {
 	VillageCenter = Vector3.new(232, 0, 0),
 	VillageRadius = 44,
 	HouseCount = 7,
+	-- A second, wider ring of houses around the first. Every third one is brick.
+	OuterHouseCount = 9,
+	OuterRadius = 80,
+	-- Concrete bunkers, as offsets from the village centre (the first sits just east of the square).
+	Bunkers = { Vector3.new(64, 0, -26), Vector3.new(-6, 0, -104), Vector3.new(74, 0, 66) },
 	TreeCount = 70,
 	Pond = { Center = Vector3.new(232, 0, 118), Radius = 26, Depth = 7 },
 	Lobby = { Position = Vector3.new(0, 34, -470), Size = Vector3.new(70, 2, 46) },
@@ -249,8 +254,15 @@ Config.Colors = {
 
 -- Built-in engine sounds (rbxasset://) so the place works with no uploads. Swap freely.
 Config.Sounds = {
-	Whoosh = "rbxasset://sounds/Rocket whoosh 01.wav",
-	Glass = "rbxasset://sounds/glassbreak.wav",
+	-- Both ship with every Roblox client (checked against the client's file manifest).
+	Tick = "rbxasset://sounds/volume_slider.ogg",
+	Whoosh = "rbxasset://sounds/action_falling.ogg",
+}
+
+-- Shared by the server (which registers them) and the client (which puts local effects in them).
+Config.CollisionGroups = {
+	Debris = "MountIgnisDebris",
+	Players = "MountIgnisPlayers",
 }
 
 return Config
