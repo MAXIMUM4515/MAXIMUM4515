@@ -31,13 +31,19 @@ Testing tips:
   (`rbxassetid://83425899740581`). To swap it, import a file with Studio's Asset Manager and paste
   its id there. Uploaded audio only plays in experiences it has been granted to, so if the game is
   published by another account or a group, give that experience permission to use the sound.
-- **Fire extinguisher product:** create a developer product (Creator Hub → your experience →
-  Monetization → Developer Products) and paste its id into `Config.Extinguisher.ProductId`. Until
-  then the shop panel only appears in Studio, where its button hands an extinguisher out for free.
-  With the id set, Studio shows Roblox's test purchase dialog and nobody is charged.
-- **Wins leaderboard:** wins are saved with DataStores, so to test saving in Studio publish the place
-  and turn on *Game Settings → Security → Enable Studio Access to API Services*. Without that, wins
-  still count for the session and the lobby board ranks the players in the server.
+- **Developer products:** create them on the Creator Hub (your experience → Monetization →
+  Developer Products) and paste their ids into `Config`: the fire extinguisher in
+  `Config.Extinguisher.ProductId`, and one product per donation tier in `Config.Shop.Donations`
+  (25, 50, 100, 250, 500, 1,000, 2,500, 5,000, 10,000 and 20,000 Robux; price each product at its
+  tier's amount). A product left at 0 is hidden in live servers; in Studio it still shows in the
+  shop and is free, so everything can be tried first. With an id set, Studio shows Roblox's test
+  purchase dialog and nobody is charged.
+- **Leaderboards:** wins and Robux spent are saved with DataStores, so to test saving in Studio
+  publish the place and turn on *Game Settings → Security → Enable Studio Access to API Services*.
+  Studio saves into separate `_Studio` stores, so test wins and test donations never reach the live
+  boards. Without DataStore access everything still counts for the session and the boards rank the
+  players in the server. The boards update every 5 minutes; lower
+  `Config.Leaderboards.RefreshInterval` while testing to see changes sooner.
 - **Test → Clients and Servers** with 2+ players shows the replication: lava, bombs and the flow
   are identical on every client.
 - `Config.Debug.Verbose = true` prints simulation timings.
@@ -111,12 +117,17 @@ Testing tips:
 - A **developer product**. Each purchase adds a **30 s tank of foam**. The extinguisher is kept through deaths and rounds until the tank runs dry, and buying again adds another tank. A panel on the right of the screen sells it and shows the foam left.
 - **Hold to spray.** The spray is a portable lake that takes its time: nobody in it can catch fire, and their heat meter falls (a full meter takes **2.5 s**) until it is empty and the flames go out. The holder is always in their own spray, so it puts **you** out too. Molten lava still hurts while you stand in it.
 - The spray is an **18-stud wedge** in front of the holder, and walls block it. While the trigger is held, the character turns to face the mouse (or the camera on touch and gamepad). The server sprays along the character's facing, so the client never sends aim data that would need checking.
-- Purchases go through `ProcessReceipt`, which grants each receipt once and leaves it for Roblox to offer again if the buyer has already left. The tool is built in code and kept in the player's StarterGear, so it comes back on respawn.
+- The tool is built in code and kept in the player's StarterGear, so it comes back on respawn.
 
-### Wins and the leaderboard (`server/Wins.luau`, `server/WinsBoard.luau`)
-- **Surviving a round is a win.** Wins show in the player list (**Tab**) through leaderstats and are saved globally to an OrderedDataStore keyed by UserId.
-- Wins are saved as **increments, never overwritten**, so a failed load can't wipe anyone's total. Unsaved wins are retried on the next win, when the player leaves and when the server shuts down.
-- The **Most Wins** board beside the lobby spawn shows the global top 10 and re-reads it **every 5 minutes**, with a countdown to the next update. Without DataStore access it ranks the players in the server instead and says so.
+### Shop and donations (`server/Shop.luau`, `client/Shop.luau`)
+- Every developer product goes through one `ProcessReceipt` handler: products register a grant function, and each receipt is granted once (or left for Roblox to offer again if the buyer has already left).
+- **Donations** come in ten tiers from **R$ 25 to R$ 20,000**. The DONATE button under the extinguisher opens a picker, and each donation is announced to the server with a thank-you.
+- Every purchase, donations and extinguishers alike, adds the Robux actually paid to the buyer's all-time **Robux spent**.
+
+### Wins and the leaderboards (`server/Wins.luau`, `server/SavedCounter.luau`, `server/Leaderboard.luau`)
+- **Surviving a round is a win.** Wins show in the player list (**Tab**) through leaderstats.
+- Wins and Robux spent are each saved globally in an OrderedDataStore keyed by UserId. They are saved as **increments, never overwritten**, so a failed load can't wipe anyone's total. Unsaved amounts are retried on the next change, when the player leaves and when the server shuts down.
+- Two boards stand either side of the lobby spawn: **Most Wins** and **Most Robux Spent**. Each shows the global top 10 and re-reads it **every 5 minutes**, with a countdown to the next update. Without DataStore access they rank the players in the server instead and say so.
 
 ### Also
 - A how-to-play pop-up when a player joins (phase names and lengths are read from Config, so it never goes stale), closed with "Okay!", and an audible countdown tick for the last 5 seconds of the intermission.
@@ -141,6 +152,7 @@ caldera/
 │  ├─ Ballistics.luau          projectile maths (pure)
 │  ├─ Shelter.luau             shared cover test
 │  ├─ SprayCone.luau           extinguisher spray shape (pure)
+│  ├─ Format.luau              number and Robux formatting (pure)
 │  └─ Signal.luau, Janitor.luau
 ├─ src/server/                 ServerScriptService.MountIgnisServer
 │  ├─ init.server.luau         bootstrap
@@ -150,15 +162,19 @@ caldera/
 │  ├─ LavaFlow.luau            simulation runner + streaming
 │  ├─ LavaBombs.luau, Pyroclastic.luau, Tremors.luau
 │  ├─ Structures.luau, Combustion.luau, Hazards.luau
-│  ├─ Extinguisher.luau        developer product, tool and spray
-│  ├─ Wins.luau, WinsBoard.luau   saved wins, leaderstats and the lobby board
+│  ├─ Extinguisher.luau        the extinguisher tool and spray
+│  ├─ Shop.luau                developer products, donations and Robux spent
+│  ├─ SavedCounter.luau        a per-player total saved globally (wins, Robux spent)
+│  ├─ Wins.luau                wins and leaderstats
+│  ├─ Leaderboard.luau         the lobby boards
 │  └─ MapBuilder.luau
 ├─ src/client/                 StarterPlayerScripts.MountIgnisClient
 │  ├─ init.client.luau
 │  ├─ LavaRenderer.luau, BombRenderer.luau, PyroclasticVisual.luau, RockfallEffects.luau
 │  ├─ AshSky.luau, CameraShake.luau
 │  ├─ HUD.luau, GuidePopup.luau
-│  ├─ Extinguisher.luau        shop panel and spray aiming
+│  ├─ Shop.luau                shop panel and donation picker
+│  ├─ Extinguisher.luau        spray aiming
 │  └─ UiKit.luau               shared UI helpers
 ├─ tests/                      offline tests for the pure modules
 └─ tools/luaurun/              tiny Luau runner used by the tests
@@ -168,7 +184,7 @@ caldera/
 
 All balance lives in `src/shared/Config.luau`: phase lengths, vent output, lava viscosity
 and cooling, bomb rate and damage, flow speed, fire spread, building health, the extinguisher's
-tank and spray, and the leaderboard's refresh interval. Change a number
+tank and spray, the donation tiers, and the leaderboards' refresh interval. Change a number
 and press Play.
 
 ## Tests
@@ -183,7 +199,7 @@ tools/luaurun/target/release/luaurun tests/run.luau
 The tests cover volume conservation, yield-stopping, downhill flow, the void edge, heat
 mixing, network change filtering, codec round trips, ballistics, the volcano shape, the
 shelter rule (against a scripted fake world: terrain, the well, glass, doorways, two houses),
-the extinguisher's spray cone, and a full eruption on the real heightmap. The eruption test asserts that the lava leaves through
+the extinguisher's spray cone, number formatting, the donation tiers, and a full eruption on the real heightmap. The eruption test asserts that the lava leaves through
 the breach, reaches the village within the round, never spills over the far rim, and crusts
 over in the aftermath.
 

@@ -251,7 +251,7 @@ Config.Player = {
 -- The holder is always in their own spray.
 Config.Extinguisher = {
 	-- Developer product id from the Creator Hub (your experience > Monetization > Developer Products).
-	-- Left at 0, the shop is hidden in live servers and hands the extinguisher out free in Studio.
+	-- Left at 0, it isn't sold in live servers and is handed out free in Studio.
 	ProductId = 0,
 	TankSeconds = 30, -- seconds of spraying per purchase; buying again adds another tank
 	CoolTime = 2.5, -- seconds of spray to cool a full heat meter to empty (the lake is instant)
@@ -262,15 +262,34 @@ Config.Extinguisher = {
 	Tick = 0.1,
 }
 
--- A win is surviving a round. All-time wins are saved globally and shown in the player list and
--- on the board in the lobby.
-Config.Leaderboard = {
-	StoreName = "MountIgnisWins", -- OrderedDataStore, keyed by UserId
-	RefreshInterval = 300, -- the board re-reads the global top list every 5 minutes
+-- Developer products besides the extinguisher. Every purchase counts toward the player's Robux spent.
+Config.Shop = {
+	-- Donation tiers, one developer product each. Create them on the Creator Hub priced at `Robux` and
+	-- paste their ids here. Tiers left at 0 are hidden in live servers (and free to test in Studio).
+	Donations = {
+		{ Robux = 25, ProductId = 0 },
+		{ Robux = 50, ProductId = 0 },
+		{ Robux = 100, ProductId = 0 },
+		{ Robux = 250, ProductId = 0 },
+		{ Robux = 500, ProductId = 0 },
+		{ Robux = 1000, ProductId = 0 },
+		{ Robux = 2500, ProductId = 0 },
+		{ Robux = 5000, ProductId = 0 },
+		{ Robux = 10000, ProductId = 0 },
+		{ Robux = 20000, ProductId = 0 },
+	},
+}
+
+-- The lobby boards: all-time wins (a win is surviving a round; also shown in the player list) and
+-- Robux spent. Both are saved globally in OrderedDataStores keyed by UserId.
+Config.Leaderboards = {
+	RefreshInterval = 300, -- each board re-reads its global top list every 5 minutes
 	Size = 10,
-	-- The board stands at the front of the lobby beside the spawn, turned to face it.
-	BoardOffset = Vector3.new(14, 0, 15), -- from the lobby centre, at floor level
 	BoardSize = Vector3.new(15, 9, 0.6),
+	-- The boards stand at the front of the lobby either side of the spawn, turned to face it.
+	-- Offsets are from the lobby centre, at floor level.
+	Wins = { StoreName = "MountIgnisWins", Offset = Vector3.new(14, 0, 15) },
+	RobuxSpent = { StoreName = "MountIgnisRobuxSpent", Offset = Vector3.new(-14, 0, 15) },
 }
 
 Config.Colors = {

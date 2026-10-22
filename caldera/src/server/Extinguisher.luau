@@ -11,21 +11,18 @@
 
 	The tool is built in code like everything else. A copy sits in the player's StarterGear, so a
 	fresh one comes back with every respawn; the foam is tracked here, per player, not on the tool.
-
-	MarketplaceService.ProcessReceipt is game-wide: a second developer product would add its own
-	branch to `processReceipt` rather than set the callback again.
+	Purchases arrive through the Shop.
 ]]
 
-local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local SprayCone = require(Shared.SprayCone)
 local Hazards = require(script.Parent.Hazards)
+local Shop = require(script.Parent.Shop)
 
 local EX = Config.Extinguisher
 
@@ -37,7 +34,6 @@ local Extinguisher = {}
 
 local foam: { [Player]: number } = {}
 local sprayers: { [Player]: Tool } = {}
-local granted: { [string]: boolean } = {} -- receipts already granted in this server
 local hooked: { [Tool]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local template: Tool
 
@@ -289,46 +285,13 @@ local function grant(player: Player)
 	announceEvent:FireClient(player, "Fire extinguisher ready! Hold to spray.", FOAM_COLOR, 3, "small")
 end
 
-local function processReceipt(receipt: { [any]: any }): Enum.ProductPurchaseDecision
-	if receipt.ProductId ~= EX.ProductId then
-		return Enum.ProductPurchaseDecision.NotProcessedYet
-	end
-	-- Roblox can deliver the same receipt more than once; grant it only the first time.
-	if granted[receipt.PurchaseId] then
-		return Enum.ProductPurchaseDecision.PurchaseGranted
-	end
-	local player = Players:GetPlayerByUserId(receipt.PlayerId)
-	if not player then
-		-- They left before it arrived: Roblox offers it again when they next join a server.
-		return Enum.ProductPurchaseDecision.NotProcessedYet
-	end
-	local ok, err = pcall(grant, player)
-	if not ok then
-		warn("[Extinguisher] could not grant purchase:", err)
-		return Enum.ProductPurchaseDecision.NotProcessedYet
-	end
-	granted[receipt.PurchaseId] = true
-	return Enum.ProductPurchaseDecision.PurchaseGranted
-end
-
 --------------------------------------------------------------------------------------------
 
 function Extinguisher.Init(folders: { Structures: Folder })
 	template = buildTemplate()
 	wallParams.FilterDescendantsInstances = { workspace.Terrain, folders.Structures }
 
-	MarketplaceService.ProcessReceipt = processReceipt
-	if EX.ProductId == 0 then
-		warn(
-			"[Mount Ignis] Config.Extinguisher.ProductId is 0: the extinguisher shop only works in Studio (for free) until a developer product id is set."
-		)
-	end
-	-- Testing without a product: Studio only, so a live server can never hand it out free.
-	Net.Event("ExtinguisherTest").OnServerEvent:Connect(function(player)
-		if RunService:IsStudio() and EX.ProductId == 0 then
-			grant(player)
-		end
-	end)
+	Shop.Register("Extinguisher", EX.ProductId, nil, grant)
 
 	local function onCharacter(player: Player, character: Model)
 		character.ChildAdded:Connect(function(child)

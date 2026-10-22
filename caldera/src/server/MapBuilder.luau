@@ -47,8 +47,8 @@ MapBuilder.Folders = {} :: {
 }
 MapBuilder.VillageSpawns = {} :: { Vector3 }
 MapBuilder.LobbySpawn = CFrame.identity
--- The lobby's wins board: its front face carries the leaderboard (see WinsBoard).
-MapBuilder.WinsBoard = (nil :: any) :: Part
+-- The lobby's leaderboards: each front face carries a board (see Leaderboard).
+MapBuilder.Boards = {} :: { Wins: Part, RobuxSpent: Part }
 MapBuilder.CraterPosition = Vector3.zero
 
 local dirtyChunks: { [number]: boolean } = {}
@@ -284,6 +284,37 @@ end
 --------------------------------------------------------------------------------------------
 
 local STONE = Color3.fromRGB(120, 116, 112)
+local BOARD_TIMBER = Color3.fromRGB(86, 60, 42)
+
+-- A slate board on two posts with a timber frame, standing on `base` (floor level) and turned to
+-- face `facing` (only its X and Z matter). Returns the slate panel, whose front face is the board.
+local function buildBoard(parent: Instance, name: string, base: Vector3, facing: Vector3): Part
+	local size = Config.Leaderboards.BoardSize
+	local center = base + Vector3.new(0, 2 + size.Y / 2, 0)
+	local frame = CFrame.lookAt(center, Vector3.new(facing.X, center.Y, facing.Z))
+	local board = block(parent, name, frame, size, Enum.Material.Slate, Color3.fromRGB(34, 30, 30))
+	block(
+		parent,
+		`{name}Frame`,
+		frame * CFrame.new(0, 0, 0.4),
+		Vector3.new(size.X + 1, size.Y + 1, 0.4),
+		Enum.Material.Wood,
+		BOARD_TIMBER
+	)
+	local postHeight = 2 + size.Y + 0.5
+	for _, side in { -1, 1 } do
+		local post = frame * CFrame.new(side * (size.X / 2 - 1.5), 0, 0.9)
+		block(
+			parent,
+			`{name}Post`,
+			CFrame.new(post.X, base.Y + postHeight / 2, post.Z) * frame.Rotation,
+			Vector3.new(0.8, postHeight, 0.8),
+			Enum.Material.Wood,
+			BOARD_TIMBER
+		)
+	end
+	return board
+end
 
 function MapBuilder.BuildLobby()
 	local lobby = MapBuilder.Folders.Lobby
@@ -361,36 +392,15 @@ function MapBuilder.BuildLobby()
 	}, lobby)
 	MapBuilder.LobbySpawn = spawnLocation.CFrame + Vector3.new(0, 4, 0)
 
-	-- The wins board stands at the front of the lobby beside the spawn, turned toward a point just
-	-- behind it so it faces the camera of anyone who spawns, on two posts with a timber frame.
-	local boardSpec = Config.Leaderboard
-	local boardSize = boardSpec.BoardSize
-	local boardBase = Vector3.new(center.X, floorY, center.Z) + boardSpec.BoardOffset
-	local boardCenter = boardBase + Vector3.new(0, 2 + boardSize.Y / 2, 0)
-	local facing = Vector3.new(spawnPosition.X, boardCenter.Y, spawnPosition.Z - 6)
-	local boardFrame = CFrame.lookAt(boardCenter, facing)
-	MapBuilder.WinsBoard =
-		block(lobby, "WinsBoard", boardFrame, boardSize, Enum.Material.Slate, Color3.fromRGB(34, 30, 30))
-	block(
-		lobby,
-		"WinsBoardFrame",
-		boardFrame * CFrame.new(0, 0, 0.4),
-		Vector3.new(boardSize.X + 1, boardSize.Y + 1, 0.4),
-		Enum.Material.Wood,
-		Color3.fromRGB(86, 60, 42)
-	)
-	local postHeight = 2 + boardSize.Y + 0.5
-	for _, side in { -1, 1 } do
-		local post = boardFrame * CFrame.new(side * (boardSize.X / 2 - 1.5), 0, 0.9)
-		block(
-			lobby,
-			"WinsBoardPost",
-			CFrame.new(post.X, floorY + postHeight / 2, post.Z) * boardFrame.Rotation,
-			Vector3.new(0.8, postHeight, 0.8),
-			Enum.Material.Wood,
-			Color3.fromRGB(86, 60, 42)
-		)
-	end
+	-- The leaderboards stand at the front of the lobby either side of the spawn, each turned toward
+	-- a point just behind it so it faces the camera of anyone who spawns.
+	local boards = Config.Leaderboards
+	local floorCenter = Vector3.new(center.X, floorY, center.Z)
+	local facing = Vector3.new(spawnPosition.X, 0, spawnPosition.Z - 6)
+	MapBuilder.Boards = {
+		Wins = buildBoard(lobby, "WinsBoard", floorCenter + boards.Wins.Offset, facing),
+		RobuxSpent = buildBoard(lobby, "RobuxBoard", floorCenter + boards.RobuxSpent.Offset, facing),
+	}
 end
 
 --------------------------------------------------------------------------------------------

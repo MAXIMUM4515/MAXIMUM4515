@@ -32,7 +32,7 @@ local PHASE_TIPS = {
 
 local TIPS = {
 	"Your HEAT meter (left side of the screen) fills while you touch lava, and you keep burning until it is empty. Only the lake cools you down, or a fire extinguisher if you have one.",
-	"Surviving a round is a win. The board in the lobby shows the players with the most wins.",
+	"Surviving a round is a win. The boards in the lobby show who has the most wins and who has spent the most Robux.",
 	"Brick houses and concrete bunkers don't burn, so they make the safest shelters.",
 	"Cooled black crust is safe to walk on.",
 	"If you die, you watch the rest of the round from the lobby.",

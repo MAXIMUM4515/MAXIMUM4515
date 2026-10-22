@@ -14,6 +14,7 @@ local Ballistics = require("src/shared/Ballistics.luau")
 local Heightmap = require("src/shared/Heightmap.luau")
 local Shelter = require("src/shared/Shelter.luau")
 local SprayCone = require("src/shared/SprayCone.luau")
+local Format = require("src/shared/Format.luau")
 
 local P = Config.Lava
 local DT = 1 / P.TickRate
@@ -304,6 +305,34 @@ test("the extinguisher sprays a wedge in front of the holder", function()
 	check(SprayCone.Contains(origin, Vector3.new(0, -0.9, -0.3), origin + Vector3.new(0, 0, -12), EX), "tilted aim")
 	check(hits(EX.PointBlank - 0.5, 0, EX.PointBlank * 0.3), "point blank, even to the side")
 	check(not SprayCone.Contains(origin, Vector3.new(0, 1, 0), origin + Vector3.new(0, 0, -8), EX), "no flat facing")
+end)
+
+print("Format")
+
+test("numbers and Robux get thousands separators", function()
+	local cases = {
+		{ 0, "0" },
+		{ 25, "25" },
+		{ 999, "999" },
+		{ 1000, "1,000" },
+		{ 20000, "20,000" },
+		{ 123456, "123,456" },
+		{ 1234567, "1,234,567" },
+		{ -4500, "-4,500" },
+	}
+	for _, case in cases do
+		local got = Format.Number(case[1])
+		check(got == case[2], `{case[1]} formatted as {got}, expected {case[2]}`)
+	end
+	check(Format.Robux(20000) == "R$ 20,000", Format.Robux(20000))
+end)
+
+test("donation tiers run from 25 to 20,000 Robux, cheapest first", function()
+	local tiers = Config.Shop.Donations
+	check(tiers[1].Robux == 25 and tiers[#tiers].Robux == 20000, "tier range")
+	for index = 2, #tiers do
+		check(tiers[index].Robux > tiers[index - 1].Robux, `tier {index} is not dearer than the one before`)
+	end
 end)
 
 print("Scenario: a full eruption on the generated volcano")

@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("MountIgnis")
 local Config = require(Shared.Config)
+local Format = require(Shared.Format)
 require(Shared.Net) -- creates the remotes and state folder before any client asks for them
 
 local MapBuilder = require(script.MapBuilder)
@@ -20,8 +21,9 @@ local Tremors = require(script.Tremors)
 local Pyroclastic = require(script.Pyroclastic)
 local Volcano = require(script.Volcano)
 local Extinguisher = require(script.Extinguisher)
+local Shop = require(script.Shop)
 local Wins = require(script.Wins)
-local WinsBoard = require(script.WinsBoard)
+local Leaderboard = require(script.Leaderboard)
 local RoundService = require(script.RoundService)
 
 local started = os.clock()
@@ -37,9 +39,25 @@ LavaBombs.Init(folders)
 Tremors.Init(folders)
 Pyroclastic.Init(folders)
 Volcano.Init()
-Extinguisher.Init(folders)
+Extinguisher.Init(folders) -- registers its product, so before the Shop opens
+Shop.Init()
 Wins.Init()
-WinsBoard.Init(MapBuilder.WinsBoard)
+Leaderboard.new(MapBuilder.Boards.Wins, {
+	Title = "MOST WINS",
+	Accent = Color3.fromRGB(255, 176, 74),
+	Counter = Wins.Counter,
+	Format = function(wins)
+		return if wins == 1 then "1 win" else `{Format.Number(wins)} wins`
+	end,
+	Empty = "No wins yet. Survive a round to get on the board!",
+})
+Leaderboard.new(MapBuilder.Boards.RobuxSpent, {
+	Title = "MOST ROBUX SPENT",
+	Accent = Color3.fromRGB(120, 230, 140),
+	Counter = Shop.Spent,
+	Format = Format.Robux,
+	Empty = "No Robux spent yet. Every purchase and donation counts!",
+})
 RoundService.Init()
 
 Structures.RegisterAll()
