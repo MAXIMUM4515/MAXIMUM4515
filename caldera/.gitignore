@@ -1,3 +1,4 @@
 tools/luaurun/target/
 *.rbxl.lock
 sourcemap.json
+.env
