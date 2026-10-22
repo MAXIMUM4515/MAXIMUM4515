@@ -31,6 +31,13 @@ Testing tips:
   (`rbxassetid://83425899740581`). To swap it, import a file with Studio's Asset Manager and paste
   its id there. Uploaded audio only plays in experiences it has been granted to, so if the game is
   published by another account or a group, give that experience permission to use the sound.
+- **Fire extinguisher product:** create a developer product (Creator Hub → your experience →
+  Monetization → Developer Products) and paste its id into `Config.Extinguisher.ProductId`. Until
+  then the shop panel only appears in Studio, where its button hands an extinguisher out for free.
+  With the id set, Studio shows Roblox's test purchase dialog and nobody is charged.
+- **Wins leaderboard:** wins are saved with DataStores, so to test saving in Studio publish the place
+  and turn on *Game Settings → Security → Enable Studio Access to API Services*. Without that, wins
+  still count for the session and the lobby board ranks the players in the server.
 - **Test → Clients and Servers** with 2+ players shows the replication: lava, bombs and the flow
   are identical on every client.
 - `Config.Debug.Verbose = true` prints simulation timings.
@@ -46,7 +53,7 @@ Testing tips:
 | **Eruption** | 55 s | The crater explodes; lava floods through the breach toward the village; lava bombs fall on red warning rings; a fissure opens on a flank; ash darkens the sky | Dodge rings, stay out of molten lava, avoid burning houses. Burning? Only the lake puts it out |
 | **Pyroclastic Flow** | 22 s | A red RUN! banner and alarm, then the eruption column collapses into a searing avalanche of ash aimed at the survivors | Get inside a house or the concrete bunker, behind a wall facing the volcano. Out in the open it is fatal. The HUD shows SHELTERED / EXPOSED |
 | **Aftermath** | 15 s | Vents die down, flows crust over into walkable basalt | Glowing rock still burns |
-| Results | 10 s | Survivors are listed | |
+| Results | 10 s | Survivors are listed, and each one gets a win | |
 
 ---
 
@@ -62,7 +69,7 @@ Testing tips:
 - Lava touching timber sets it on fire.
 - Touching molten lava hits you with a **short burst** (3 quick hits), slows you and **sets you on fire**. Stay in it and the burst repeats every 1.25 s.
 - Every moment of contact fills the **heat meter**, a vertical gauge on the left of the screen: empty to **MAX in 4 s** of continuous contact. While it is up you are on fire and take a **poke every 0.5 s that grows with the meter** (2 damage when nearly empty, 6 at MAX).
-- The meter **never cools down on its own**. Only the **lake** helps: the flames and pokes stop at once, queued lava hits are cancelled, and the meter drains to empty over **3 s**, then disappears. Bombs, burning buildings and the pyroclastic flow also set you alight at a lower level.
+- The meter **never cools down on its own**. Only the **lake** helps: the flames and pokes stop at once, queued lava hits are cancelled, and the meter drains to empty over **3 s**, then disappears. A **fire extinguisher** (below) is a slower, portable lake. Bombs, burning buildings and the pyroclastic flow also set you alight at a lower level.
 
 ### Network streaming (`shared/LavaGrid.luau`)
 - The server never replicates lava Parts. Changed cells are packed into a `buffer` (9 bytes per cell) and only sent when the change is visible (depth > 8 cm, or a temperature band change). Settled cells are always sent exactly.
@@ -100,6 +107,17 @@ Testing tips:
 - A pure heightmap function (cone profile, crater, a descending breach gorge that steers lava toward the village, pond) written chunk by chunk with `WriteVoxels`.
 - Between rounds only the chunks that craters touched are rewritten. The village is rebuilt from a fixed seed.
 
+### Fire extinguisher (`server/Extinguisher.luau`, `client/Extinguisher.luau`, `shared/SprayCone.luau`)
+- A **developer product**. Each purchase adds a **30 s tank of foam**. The extinguisher is kept through deaths and rounds until the tank runs dry, and buying again adds another tank. A panel on the right of the screen sells it and shows the foam left.
+- **Hold to spray.** The spray is a portable lake that takes its time: nobody in it can catch fire, and their heat meter falls (a full meter takes **2.5 s**) until it is empty and the flames go out. The holder is always in their own spray, so it puts **you** out too. Molten lava still hurts while you stand in it.
+- The spray is an **18-stud wedge** in front of the holder, and walls block it. While the trigger is held, the character turns to face the mouse (or the camera on touch and gamepad). The server sprays along the character's facing, so the client never sends aim data that would need checking.
+- Purchases go through `ProcessReceipt`, which grants each receipt once and leaves it for Roblox to offer again if the buyer has already left. The tool is built in code and kept in the player's StarterGear, so it comes back on respawn.
+
+### Wins and the leaderboard (`server/Wins.luau`, `server/WinsBoard.luau`)
+- **Surviving a round is a win.** Wins show in the player list (**Tab**) through leaderstats and are saved globally to an OrderedDataStore keyed by UserId.
+- Wins are saved as **increments, never overwritten**, so a failed load can't wipe anyone's total. Unsaved wins are retried on the next win, when the player leaves and when the server shuts down.
+- The **Most Wins** board beside the lobby spawn shows the global top 10 and re-reads it **every 5 minutes**, with a countdown to the next update. Without DataStore access it ranks the players in the server instead and says so.
+
 ### Also
 - A how-to-play pop-up when a player joins (phase names and lengths are read from Config, so it never goes stale), closed with "Okay!", and an audible countdown tick for the last 5 seconds of the intermission.
 - Players are tracked from the moment their character reaches the Workspace (`CharacterAdded` fires before that), with a safety net in the update loop. A character that slipped through would be immune to every hazard.
@@ -122,6 +140,7 @@ caldera/
 │  ├─ Heightmap.luau           terrain shape (pure)
 │  ├─ Ballistics.luau          projectile maths (pure)
 │  ├─ Shelter.luau             shared cover test
+│  ├─ SprayCone.luau           extinguisher spray shape (pure)
 │  └─ Signal.luau, Janitor.luau
 ├─ src/server/                 ServerScriptService.MountIgnisServer
 │  ├─ init.server.luau         bootstrap
@@ -131,12 +150,15 @@ caldera/
 │  ├─ LavaFlow.luau            simulation runner + streaming
 │  ├─ LavaBombs.luau, Pyroclastic.luau, Tremors.luau
 │  ├─ Structures.luau, Combustion.luau, Hazards.luau
+│  ├─ Extinguisher.luau        developer product, tool and spray
+│  ├─ Wins.luau, WinsBoard.luau   saved wins, leaderstats and the lobby board
 │  └─ MapBuilder.luau
 ├─ src/client/                 StarterPlayerScripts.MountIgnisClient
 │  ├─ init.client.luau
 │  ├─ LavaRenderer.luau, BombRenderer.luau, PyroclasticVisual.luau, RockfallEffects.luau
 │  ├─ AshSky.luau, CameraShake.luau
 │  ├─ HUD.luau, GuidePopup.luau
+│  ├─ Extinguisher.luau        shop panel and spray aiming
 │  └─ UiKit.luau               shared UI helpers
 ├─ tests/                      offline tests for the pure modules
 └─ tools/luaurun/              tiny Luau runner used by the tests
@@ -145,7 +167,8 @@ caldera/
 ## Tuning
 
 All balance lives in `src/shared/Config.luau`: phase lengths, vent output, lava viscosity
-and cooling, bomb rate and damage, flow speed, fire spread, building health. Change a number
+and cooling, bomb rate and damage, flow speed, fire spread, building health, the extinguisher's
+tank and spray, and the leaderboard's refresh interval. Change a number
 and press Play.
 
 ## Tests
@@ -160,7 +183,7 @@ tools/luaurun/target/release/luaurun tests/run.luau
 The tests cover volume conservation, yield-stopping, downhill flow, the void edge, heat
 mixing, network change filtering, codec round trips, ballistics, the volcano shape, the
 shelter rule (against a scripted fake world: terrain, the well, glass, doorways, two houses),
-and a full eruption on the real heightmap. The eruption test asserts that the lava leaves through
+the extinguisher's spray cone, and a full eruption on the real heightmap. The eruption test asserts that the lava leaves through
 the breach, reaches the village within the round, never spills over the far rim, and crusts
 over in the aftermath.
 

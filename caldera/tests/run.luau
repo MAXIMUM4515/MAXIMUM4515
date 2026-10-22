@@ -13,6 +13,7 @@ local LavaGrid = require("src/shared/LavaGrid.luau")
 local Ballistics = require("src/shared/Ballistics.luau")
 local Heightmap = require("src/shared/Heightmap.luau")
 local Shelter = require("src/shared/Shelter.luau")
+local SprayCone = require("src/shared/SprayCone.luau")
 
 local P = Config.Lava
 local DT = 1 / P.TickRate
@@ -279,6 +280,30 @@ test("a wall needs a roof over it, from the same building", function()
 		not evaluate({ roof = part(otherHouse), walls = { part(house), part(house), part(house) } }),
 		"mixed buildings"
 	)
+end)
+
+print("SprayCone")
+
+test("the extinguisher sprays a wedge in front of the holder", function()
+	local EX = Config.Extinguisher
+	local origin = Vector3.new(10, 5, 10)
+	local facing = Vector3.new(0, 0, -1)
+	local function hits(dx: number, dy: number, dz: number): boolean
+		return SprayCone.Contains(origin, facing, origin + Vector3.new(dx, dy, dz), EX)
+	end
+	check(hits(0, 0, -10), "straight ahead")
+	check(hits(0, 0, -(EX.Range - 0.5)), "near the end of the range")
+	check(not hits(0, 0, -(EX.Range + 0.5)), "past the range")
+	local edge = EX.Range * 0.8
+	local inside, outside = EX.HalfAngle - math.rad(3), EX.HalfAngle + math.rad(3)
+	check(hits(edge * math.sin(inside), 0, -edge * math.cos(inside)), "just inside the cone")
+	check(not hits(edge * math.sin(outside), 0, -edge * math.cos(outside)), "just outside the cone")
+	check(not hits(0, 0, 10), "behind the holder")
+	check(hits(0, EX.Height - 0.5, -8) and not hits(0, EX.Height + 0.5, -8), "height limit")
+	-- Aiming up or down doesn't narrow the wedge: only the flat direction counts.
+	check(SprayCone.Contains(origin, Vector3.new(0, -0.9, -0.3), origin + Vector3.new(0, 0, -12), EX), "tilted aim")
+	check(hits(EX.PointBlank - 0.5, 0, EX.PointBlank * 0.3), "point blank, even to the side")
+	check(not SprayCone.Contains(origin, Vector3.new(0, 1, 0), origin + Vector3.new(0, 0, -8), EX), "no flat facing")
 end)
 
 print("Scenario: a full eruption on the generated volcano")

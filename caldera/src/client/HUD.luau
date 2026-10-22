@@ -647,7 +647,11 @@ function HUD.Start()
 		if full then
 			meterMax.TextTransparency = 0.25 + 0.25 * math.sin(os.clock() * 10)
 		end
-		meterHint.Text = if burning then "ON FIRE!\nGet to the lake!" else "Cooling off..."
+		local hasExtinguisher = (player:GetAttribute("ExtinguisherFoam") or 0) > 0
+		meterHint.Text = if not burning
+			then "Cooling off..."
+			elseif hasExtinguisher then "ON FIRE!\nSpray yourself!"
+			else "ON FIRE!\nGet to the lake!"
 		meterHint.TextColor3 = if burning then Color3.fromRGB(255, 140, 60) else Color3.fromRGB(140, 200, 255)
 		meterStroke.Color = if burning then Color3.fromRGB(255, 120, 50) else Color3.fromRGB(120, 190, 255)
 	end)

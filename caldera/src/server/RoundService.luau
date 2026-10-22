@@ -25,6 +25,7 @@ local Pyroclastic = require(script.Parent.Pyroclastic)
 local Structures = require(script.Parent.Structures)
 local Tremors = require(script.Parent.Tremors)
 local Volcano = require(script.Parent.Volcano)
+local Wins = require(script.Parent.Wins)
 
 local R = Config.Round
 
@@ -134,6 +135,8 @@ local function results()
 	for player in survivors do
 		if player.Parent then
 			table.insert(names, player.DisplayName)
+			-- Surviving the round is a win.
+			Wins.Award(player)
 		end
 	end
 	table.sort(names)

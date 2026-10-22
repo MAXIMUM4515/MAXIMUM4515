@@ -47,6 +47,8 @@ MapBuilder.Folders = {} :: {
 }
 MapBuilder.VillageSpawns = {} :: { Vector3 }
 MapBuilder.LobbySpawn = CFrame.identity
+-- The lobby's wins board: its front face carries the leaderboard (see WinsBoard).
+MapBuilder.WinsBoard = (nil :: any) :: Part
 MapBuilder.CraterPosition = Vector3.zero
 
 local dirtyChunks: { [number]: boolean } = {}
@@ -358,6 +360,37 @@ function MapBuilder.BuildLobby()
 		TopSurface = Enum.SurfaceType.Smooth,
 	}, lobby)
 	MapBuilder.LobbySpawn = spawnLocation.CFrame + Vector3.new(0, 4, 0)
+
+	-- The wins board stands at the front of the lobby beside the spawn, turned toward a point just
+	-- behind it so it faces the camera of anyone who spawns, on two posts with a timber frame.
+	local boardSpec = Config.Leaderboard
+	local boardSize = boardSpec.BoardSize
+	local boardBase = Vector3.new(center.X, floorY, center.Z) + boardSpec.BoardOffset
+	local boardCenter = boardBase + Vector3.new(0, 2 + boardSize.Y / 2, 0)
+	local facing = Vector3.new(spawnPosition.X, boardCenter.Y, spawnPosition.Z - 6)
+	local boardFrame = CFrame.lookAt(boardCenter, facing)
+	MapBuilder.WinsBoard =
+		block(lobby, "WinsBoard", boardFrame, boardSize, Enum.Material.Slate, Color3.fromRGB(34, 30, 30))
+	block(
+		lobby,
+		"WinsBoardFrame",
+		boardFrame * CFrame.new(0, 0, 0.4),
+		Vector3.new(boardSize.X + 1, boardSize.Y + 1, 0.4),
+		Enum.Material.Wood,
+		Color3.fromRGB(86, 60, 42)
+	)
+	local postHeight = 2 + boardSize.Y + 0.5
+	for _, side in { -1, 1 } do
+		local post = boardFrame * CFrame.new(side * (boardSize.X / 2 - 1.5), 0, 0.9)
+		block(
+			lobby,
+			"WinsBoardPost",
+			CFrame.new(post.X, floorY + postHeight / 2, post.Z) * boardFrame.Rotation,
+			Vector3.new(0.8, postHeight, 0.8),
+			Enum.Material.Wood,
+			Color3.fromRGB(86, 60, 42)
+		)
+	end
 end
 
 --------------------------------------------------------------------------------------------

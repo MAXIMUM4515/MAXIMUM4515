@@ -11,6 +11,8 @@
 		               fuller it is. It never cools down on its own.
 		the lake       puts the fire out at once (flames and pokes stop, queued lava hits are
 		               cancelled) and empties the meter over 3 s
+		extinguisher   a portable lake that takes its time: nothing catches fire in its foam, and the
+		               meter falls while it hits you until it is empty and the flames go out
 		flames nearby  a poke every so often, with a chance to catch fire
 		blasts         hurt with falloff; close ones set you alight
 
@@ -36,6 +38,7 @@ local LavaFlow = require(script.Parent.LavaFlow)
 local L = Config.Lava
 local F = Config.Fire
 local PL = Config.Player
+local EX = Config.Extinguisher
 
 local Hazards = {}
 
@@ -65,6 +68,7 @@ type CharacterState = {
 
 	NextFireTick: number,
 	InWater: boolean,
+	SprayedUntil: number, -- extinguisher foam is on them until then (os.clock)
 	Wading: boolean,
 	LastCause: string?,
 	LastCauseAt: number,
@@ -84,6 +88,9 @@ local losParams = RaycastParams.new()
 losParams.FilterType = Enum.RaycastFilterType.Include
 
 local DEFAULT_WALK_SPEED = 16
+-- Foam lasts a little longer than one spray tick, so the extinguisher's loop and this one never
+-- leave a gap between them.
+local SPRAY_GRACE = 0.25
 
 local function feetHeight(state: CharacterState): number
 	local humanoid, root = state.Humanoid, state.Root
@@ -157,6 +164,22 @@ local function putOutFlames(state: CharacterState)
 	state.Player:SetAttribute("Burning", nil)
 end
 
+-- Steam and a toast when the flames go out.
+local function extinguished(state: CharacterState)
+	local steam = Instance.new("Smoke")
+	steam.Color = Color3.fromRGB(235, 235, 235)
+	steam.Opacity = 0.35
+	steam.RiseVelocity = 9
+	steam.Size = 4
+	steam.Parent = state.Root
+	task.delay(0.8, function()
+		steam.Enabled = false
+		task.wait(3)
+		steam:Destroy()
+	end)
+	announceEvent:FireClient(state.Player, "Extinguished!", Color3.fromRGB(140, 200, 255), 1.5, "small")
+end
+
 -- Removes every trace of burning at once (death, round reset).
 local function clearBurn(state: CharacterState)
 	putOutFlames(state)
@@ -168,10 +191,11 @@ end
 
 --[[
 	Sets a player alight with the burn meter at least at `meter` (0..1). Nothing catches fire
-	underwater. Lava calls this every tick with a rising value; blasts and flames with a small one.
+	underwater or in extinguisher foam. Lava calls this every tick with a rising value; blasts and
+	flames with a small one.
 ]]
 function Hazards.SetOnFire(state: CharacterState, meter: number, cause: string)
-	if state.InWater or state.Humanoid.Health <= 0 then
+	if state.InWater or os.clock() < state.SprayedUntil or state.Humanoid.Health <= 0 then
 		return
 	end
 	state.Meter = math.clamp(math.max(state.Meter, meter), 0, 1)
@@ -204,21 +228,31 @@ local function douse(state: CharacterState)
 		state.Draining = true
 		state.DrainRate = state.Meter / PL.MeterDrainTime
 	end
-	if not wasHurting then
+	if wasHurting then
+		extinguished(state)
+	end
+end
+
+--[[
+	Extinguisher foam on a player. The extinguisher calls this every spray tick for everyone in its
+	spray, the holder included; while it keeps coming they can't catch fire and `cool` runs.
+]]
+function Hazards.Spray(state: CharacterState)
+	state.SprayedUntil = os.clock() + SPRAY_GRACE
+end
+
+-- Foam: the meter falls by a full meter every CoolTime seconds, and the flames (and their pokes)
+-- keep going until it is empty. Lava bursts already underway still land.
+local function cool(state: CharacterState, dt: number)
+	state.Meter = math.max(0, state.Meter - dt / EX.CoolTime)
+	if state.Meter > 0 then
 		return
 	end
-	local steam = Instance.new("Smoke")
-	steam.Color = Color3.fromRGB(235, 235, 235)
-	steam.Opacity = 0.35
-	steam.RiseVelocity = 9
-	steam.Size = 4
-	steam.Parent = state.Root
-	task.delay(0.8, function()
-		steam.Enabled = false
-		task.wait(3)
-		steam:Destroy()
-	end)
-	announceEvent:FireClient(state.Player, "Extinguished!", Color3.fromRGB(140, 200, 255), 1.5, "small")
+	state.Draining = false
+	if state.BurnEffect then
+		putOutFlames(state)
+		extinguished(state)
+	end
 end
 
 -- On fire: a poke every interval, from BurnTickDamage.Min on an empty meter to Max on a full one.
@@ -339,6 +373,9 @@ local function updateCharacter(state: CharacterState, dt: number)
 	if state.InWater then
 		douse(state)
 	end
+	if now < state.SprayedUntil then
+		cool(state, dt)
+	end
 
 	-- Molten lava under the player's feet.
 	local surface, depth, temperature = LavaFlow.Sample(position)
@@ -398,6 +435,7 @@ local function track(player: Player, character: Model, humanoid: Humanoid, root:
 		NextBurstAllowed = 0,
 		NextFireTick = 0,
 		InWater = false,
+		SprayedUntil = 0,
 		Wading = false,
 		LastCause = nil,
 		LastCauseAt = 0,

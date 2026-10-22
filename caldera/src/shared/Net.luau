@@ -27,6 +27,7 @@ local EVENT_NAMES = {
 	"RockImpact", -- (position, boulderSize, power)
 	"RockHit", -- server -> client (power): a boulder hit you directly
 	"Knockback", -- server -> client (velocity, tumble)
+	"ExtinguisherTest", -- client -> server (): a free extinguisher, only in Studio with no product id set
 }
 
 local function getOrCreate(parent: Instance, className: string, name: string): Instance

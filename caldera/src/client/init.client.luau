@@ -18,6 +18,7 @@ local PyroclasticVisual = require(script.PyroclasticVisual)
 local RockfallEffects = require(script.RockfallEffects)
 local GuidePopup = require(script.GuidePopup)
 local HUD = require(script.HUD)
+local Extinguisher = require(script.Extinguisher)
 
 local player = Players.LocalPlayer
 
@@ -33,6 +34,7 @@ end
 
 start("HUD", HUD)
 start("GuidePopup", GuidePopup)
+start("Extinguisher", Extinguisher)
 start("CameraShake", CameraShake)
 start("LavaRenderer", LavaRenderer)
 start("BombRenderer", BombRenderer)

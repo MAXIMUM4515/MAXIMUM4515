@@ -246,6 +246,33 @@ Config.Player = {
 	HazardTick = 0.1,
 }
 
+-- The fire extinguisher (a developer product). Its spray is a portable lake that takes its time:
+-- nobody in it can catch fire, and their heat meter falls until it is empty and the flames go out.
+-- The holder is always in their own spray.
+Config.Extinguisher = {
+	-- Developer product id from the Creator Hub (your experience > Monetization > Developer Products).
+	-- Left at 0, the shop is hidden in live servers and hands the extinguisher out free in Studio.
+	ProductId = 0,
+	TankSeconds = 30, -- seconds of spraying per purchase; buying again adds another tank
+	CoolTime = 2.5, -- seconds of spray to cool a full heat meter to empty (the lake is instant)
+	Range = 18,
+	HalfAngle = math.rad(32),
+	Height = 9, -- how far above or below the holder the spray still reaches
+	PointBlank = 3, -- this close, the spray hits whichever way the holder faces
+	Tick = 0.1,
+}
+
+-- A win is surviving a round. All-time wins are saved globally and shown in the player list and
+-- on the board in the lobby.
+Config.Leaderboard = {
+	StoreName = "MountIgnisWins", -- OrderedDataStore, keyed by UserId
+	RefreshInterval = 300, -- the board re-reads the global top list every 5 minutes
+	Size = 10,
+	-- The board stands at the front of the lobby beside the spawn, turned to face it.
+	BoardOffset = Vector3.new(14, 0, 15), -- from the lobby centre, at floor level
+	BoardSize = Vector3.new(15, 9, 0.6),
+}
+
 Config.Colors = {
 	Rumbling = Color3.fromRGB(255, 176, 74),
 	Eruption = Color3.fromRGB(255, 72, 38),
