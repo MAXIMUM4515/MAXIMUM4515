@@ -252,7 +252,7 @@ Config.Player = {
 Config.Extinguisher = {
 	-- Developer product id from the Creator Hub (your experience > Monetization > Developer Products).
 	-- Left at 0, it isn't sold in live servers and is handed out free in Studio.
-	ProductId = 0,
+	ProductId = 3721451142,
 	TankSeconds = 30, -- seconds of spraying per purchase; buying again adds another tank
 	CoolTime = 2.5, -- seconds of spray to cool a full heat meter to empty (the lake is instant)
 	Range = 18,
@@ -267,16 +267,16 @@ Config.Shop = {
 	-- Donation tiers, one developer product each. Create them on the Creator Hub priced at `Robux` and
 	-- paste their ids here. Tiers left at 0 are hidden in live servers (and free to test in Studio).
 	Donations = {
-		{ Robux = 25, ProductId = 0 },
-		{ Robux = 50, ProductId = 0 },
-		{ Robux = 100, ProductId = 0 },
-		{ Robux = 250, ProductId = 0 },
-		{ Robux = 500, ProductId = 0 },
-		{ Robux = 1000, ProductId = 0 },
-		{ Robux = 2500, ProductId = 0 },
-		{ Robux = 5000, ProductId = 0 },
-		{ Robux = 10000, ProductId = 0 },
-		{ Robux = 20000, ProductId = 0 },
+		{ Robux = 25, ProductId = 3721451159 },
+		{ Robux = 50, ProductId = 3721451166 },
+		{ Robux = 100, ProductId = 3721451173 },
+		{ Robux = 250, ProductId = 3721451183 },
+		{ Robux = 500, ProductId = 3721451185 },
+		{ Robux = 1000, ProductId = 3721451191 },
+		{ Robux = 2500, ProductId = 3721451206 },
+		{ Robux = 5000, ProductId = 3721451220 },
+		{ Robux = 10000, ProductId = 3721451231 },
+		{ Robux = 20000, ProductId = 3721451237 },
 	},
 }
 

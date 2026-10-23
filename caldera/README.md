@@ -31,13 +31,13 @@ Testing tips:
   (`rbxassetid://83425899740581`). To swap it, import a file with Studio's Asset Manager and paste
   its id there. Uploaded audio only plays in experiences it has been granted to, so if the game is
   published by another account or a group, give that experience permission to use the sound.
-- **Developer products:** create them on the Creator Hub (your experience → Monetization →
-  Developer Products) and paste their ids into `Config`: the fire extinguisher in
-  `Config.Extinguisher.ProductId`, and one product per donation tier in `Config.Shop.Donations`
-  (25, 50, 100, 250, 500, 1,000, 2,500, 5,000, 10,000 and 20,000 Robux; price each product at its
-  tier's amount). A product left at 0 is hidden in live servers; in Studio it still shows in the
-  shop and is free, so everything can be tried first. With an id set, Studio shows Roblox's test
-  purchase dialog and nobody is charged.
+- **Developer products:** the fire extinguisher (R$ 49) and the ten donation tiers (R$ 25 to
+  R$ 20,000) are set up in the group's experience, *Mount Ignis [ Natural Disaster ]*, and their ids
+  are in `Config.Extinguisher.ProductId` and `Config.Shop.Donations`. Prices can be changed on the
+  Creator Hub (your experience → Monetization → Developer Products); the extinguisher button reads
+  the live price, but keep each donation priced at its tier, since the button shows that amount.
+  A product whose id is set to 0 is hidden in live servers and free in Studio. In Studio, buying a
+  real product shows Roblox's test purchase dialog and nobody is charged.
 - **Leaderboards:** wins and Robux spent are saved with DataStores, so to test saving in Studio
   publish the place and turn on *Game Settings → Security → Enable Studio Access to API Services*.
   Studio saves into separate `_Studio` stores, so test wins and test donations never reach the live
